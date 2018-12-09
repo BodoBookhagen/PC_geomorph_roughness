@@ -1,0 +1,16 @@
+{
+  "pipeline":[
+    {
+        "type": "readers.las",
+        "filename": "Pozo_USGS_UTM11_NAD83_cat16_clg_cl2.laz"
+    },
+    {
+        "type":"filters.sample",
+        "radius": 0.5
+    },
+    {
+      "type":"writers.las",
+      "filename":"Pozo_USGS_UTM11_NAD83_cat16_clg_cl2_radius50cm.las"
+    }
+  ]
+}

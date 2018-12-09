@@ -1,0 +1,14 @@
+{
+"pipeline": [
+	"Pozo_USGS_UTM11_NAD83_cat17_SMRF_cl2.las",
+	{
+		"filename":"dtm_interp/Pozo_USGS_UTM11_NAD83_cat17_smrf_cl2_Zmean_1m.tif",
+		"gdaldriver":"GTiff",
+		"output_type":"mean",
+		"data_type":"float",
+		"resolution":"1.0",
+		"dimension":"Z",
+		"type": "writers.gdal"
+	}
+]
+}
