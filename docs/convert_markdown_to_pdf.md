@@ -58,5 +58,8 @@ pandoc --number-sections --listings -H auto_linebreak_listings.tex \
     -s PC_geomorph_roughness_manual.md -o PC_geomorph_roughness_manual_${d}.pdf \
     --template eisvogel
 
-cp PC_geomorph_roughness_manual_${d}.pdf PC_geomorph_roughness_manual.pdf
-gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=PC_geomorph_roughness_manual_lowres.pdf PC_geomorph_roughness_manual.pdf
+gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=PC_geomorph_roughness_manual_ebook.pdf PC_geomorph_roughness_manual_${d}.pdf
+
+gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/printer -dNOPAUSE -dQUIET -dBATCH -sOutputFile=PC_geomorph_roughness_manual.pdf PC_geomorph_roughness_manual_${d}.pdf
+
+rm -fr PC_geomorph_roughness_manual_${d}.pdf

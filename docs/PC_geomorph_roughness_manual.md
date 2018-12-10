@@ -6,6 +6,9 @@ date: "December 2018"
 author: "Bodo Bookhagen ([bodo.bookhagen@uni-potsdam.de](bodo.bookhagen@uni-potsdam.de))"
 keywords: [Point Cloud, Classification, lidar, SfM, geomorphology]
 titlepage: true
+titlepage-rule-height: 2
+logo: "figs/pozotitle.png"
+logo-width: 360
 toc-own-page: true 
 listings-disable-line-numbers: true
 disable-header-and-footer: true
@@ -40,7 +43,7 @@ conda config --prepend channels conda-forge/label/dev
 conda config --prepend channels conda-forge
 conda create -y -n PC_py3 python=3.6 pip scipy pandas numpy matplotlib \
 	scikit-image gdal pdal xarray packaging ipython multiprocess \
-	h5py lastools pykdtree spyder gmt=5*
+	h5py lastools pykdtree spyder gmt=5* imagemagick
 ```
 
 Activate the environment and install laspy
@@ -68,13 +71,13 @@ conda config --prepend channels conda-forge/label/dev
 conda config --prepend channels conda-forge
 conda create -y -n PC_py3 python=3.6 pip scipy pandas numpy matplotlib \
     scikit-image gdal pdal xarray packaging ipython multiprocess \
-    h5py lastools pykdtree spyder gmt=5*
+    h5py lastools pykdtree spyder gmt=5* imagemagick
 ```
 
 You can active this environment on the command line with
 ```source activate PC_py3```.
 
-You don't need ipython or spyder to run this code and you can remove these repositories in the command line above, but they usually come in handy. Also, we are installing GMT5 for visualization purposes. If you don't plan to generate maps and/or use GMT, you can safely remove *gmt=5\** from the line above.
+You don't need ipython or spyder to run this code and you can remove these repositories in the command line above, but they usually come in handy. Also, we are installing GMT5 for visualization purposes. If you don't plan to generate maps and/or use GMT, you can safely remove *gmt=5\** and *imagemagick* from the line above.
 
 Next, Install a fast and simple LAS/LAZ reader/writer. You can do similar steps through *lastools*, but this interface is fairly simple to use. *Please note that laspy currently does not support writing LAZ files.*
 ```bash
@@ -102,7 +105,7 @@ The python-based tool [lidar2dem](http://applied-geosolutions.github.io/lidar2de
 ```bash
 conda create -y -n PC_py2 python=2* pip scipy pandas numpy matplotlib \
     scikit-image gdal pdal xarray packaging ipython multiprocess \
-    h5py lastools pykdtree spyder gmt=5*
+    h5py lastools pykdtree spyder gmt=5* imagemagick
 source activate PC_py2
 ```
 Installation into the home directory (alternatively, if sudo rights are available, install into /usr/local/src):

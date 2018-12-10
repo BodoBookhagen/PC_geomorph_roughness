@@ -60,3 +60,5 @@ convert Ex03_cl2_3.0m_dz_IQR.png Ex03_cl2_5.0m_dz_IQR.png -fuzz 1% -trim +repage
 convert dz_IQR_1_2m.png dz_IQR_3_5m.png +repage -append ~/Dropbox/soft/github/PC_geomorph_roughness/docs/figs/Ex03_dz_IQR_1_2_3_5m.png
 
 Ex01_3.0m_SlopeLSTSQ_P1.png Ex01_5.0m_SlopeLSTSQ_P1.png
+
+convert -crop 2082x1847+404+186 pozo.png +repage ~/Dropbox/soft/github/PC_geomorph_roughness/docs/figs/pozotitle.png
