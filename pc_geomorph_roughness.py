@@ -71,6 +71,8 @@ def cmdLineParser():
     parser.add_argument('--gmt_basename', type=str, default='',  help='GMT basename for Postscript filenames. ')
     parser.add_argument('--plot_plane_fits', type=int, default=0,  help='Create plots of plane fits for individual seed points with more than plot_plane_fits_nr_points (default = 10) neighborhood points in subdirectory "maps". Mostly for testing purposes, default is off (--plot_plane_fits 0).')
     parser.add_argument('--plot_plane_fits_nr_points', type=int, default=10,  help='Set number of neighborhood points to create plot for seed point. Default is --plot_plane_fits_nr_points 10. You will need to adjust this for larger neighborhood radii.')
+    parser.add_argument('--ransac_on', type=int, default=0,  help='Turn RANSAC fitting on. This will significantly increase the processing time, but will give better and tighter fits.')
+
     return parser.parse_args()
 
 def planeFit(points):
@@ -116,12 +118,14 @@ def curvFit_lstsq_polygon(points, order=2):
     except AssertionError:
         return np.nan, np.nan, np.nan
 
-    #points_org = np.copy(points)
-    #points[:,0] = points[:,0] - points[:,0].mean()
-    #points[:,1] = points[:,1] - points[:,1].mean()
-    #points[:,2] = points[:,2] - points[:,2].mean()
     points = points.T
+    nr_of_points = len(points)
+    points[:,0] = points[:,0] - points[:,0].mean()
+    points[:,1] = points[:,1] - points[:,1].mean()
+    #z_mean = points[:,2].mean()
+    #points[:,2] = points[:,1] - z_mean
     
+    #points[:,2] = points[:,2] - points[:,2].mean()
 #    # evaluate it on grid
 #    X,Y = np.meshgrid(np.arange(np.nanmin(points[:,0]),np.nanmax(points[:,0]), current_rstep_size/10), np.arange(np.nanmin(points[:,1]),np.nanmax(points[:,1]), current_rstep_size/10))
 #    XX = X.flatten()
@@ -130,39 +134,83 @@ def curvFit_lstsq_polygon(points, order=2):
         # best-fit linear plane
         A = np.c_[points[:,0], points[:,1], np.ones(points.shape[0])]
         C,_,_,_ = linalg.lstsq(A, points[:,2])    # coefficients
+        Z_pts = C[0]*points[:,0] + C[1]*points[:,1] + C[2]
+        errors = points[:,2] - Z_pts
+        mse = (np.square(errors)).mean(axis=0)
+        rmse = np.sqrt(mse)
         # evaluate it on grid
         #Z_pts = C[0]*X + C[1]*Y + C[2]
         # or expressed using matrix/vector product
         #Z_order1 = np.dot(np.c_[XX, YY, np.ones(XX.shape)], C).reshape(X.shape)
         #slope = np.mean(C[0:2])
+
+        if inps.ransac_on == 1:
+            d = 6
+            C_p1_ransac, C_p1_ransac_rmse = ransac_polyfit(points, order=1, n=3, k=200, t=rmse, d=d, f=0.6)
+            if np.array(C_p1_ransac).size > 1:
+                #use RANSAC model
+                C=C_p1_ransac
+                Z_pts = C[0]*points[:,0] + C[1]*points[:,1] + C[2]
+                errors = points[:,2] - Z_pts
+                #use rmse from RANSAC
+                rmse = C_p1_ransac_rmse
         slope = np.sqrt( C[0]**2. + C[1]**2. )
-        curv_meanc = np.nan
+        curv_contour = np.nan
         curv_tan = np.nan
         curv_profc = np.nan
-        Z_pts = C[0]*points[:,0] + C[1]*points[:,1] + C[2]
-        errors = points[:,2] - Z_pts
-        dZ_residuals = np.linalg.norm(errors)
+        #dZ_residuals = np.linalg.norm(errors)
     elif order == 2:
         # best-fit quadratic curve
         #Z = Dx² + Ey² + Fxy + Gx + Hy + I
-        A = np.c_[points[:,0]**2, points[:,1]**2, points[:,0]*points[:,1], points[:,0], points[:,1], np.ones(points.shape[0])]
+        #z = r*x**2 + t * y**2 + s*x*y + p*x + q*y + u
+        A = np.c_[points[:,0]**2., \
+                  points[:,1]**2., \
+                  points[:,0]*points[:,1], \
+                  points[:,0], points[:,1], np.ones(points.shape[0])]
         C,_,_,_ = linalg.lstsq(A, points[:,2])    # coefficients
         Z_pts = C[0]*points[:,0]**2. + C[1]*points[:,1]**2. + C[2]*points[:,0]*points[:,1] + C[3]*points[:,0] + C[4]*points[:,1] + C[5]
-
-        # evaluate it on a grid
-        #Z_order2 = C[0]*X**2. + C[1]*Y**2. + C[2]*X*Y + C[3]*X + C[4]*Y + C[5]
-        #Z = Dx² + Ey² + Fxy + Gx + Hy + I
-        #Curvature = -2(D + E)
-        #Slope = sqrt(G^2 + H ^2)
-        curvature = -2 * (C[0] + C[1])
-        curv_meanc = curvature
-        curv_tan = np.nan
-        curv_profc = np.nan
-        slope = np.sqrt( C[3]**2 + C[4]**2 )
-
-        #Z_pts = np.dot(np.c_[np.ones(points.shape[0]), points[:,0], points[:,1], points[:,0]*points[:,1], points[:,0]**2, points[:,1]**2], C)
         errors = points[:,2] - Z_pts
-        dZ_residuals = np.linalg.norm(errors)
+        mse = (np.square(errors)).mean(axis=0)
+        rmse = np.sqrt(mse)
+
+        if inps.ransac_on == 1:
+            d = 12
+            C_p2_ransac, C_p2_ransac_rmse = ransac_polyfit(points, order=2, n=6, k=200, t=rmse, d=d, f=0.5)
+            if np.array(C_p2_ransac).size > 1:
+                #use RANSAC model
+                C=C_p2_ransac
+                rmse = C_p2_ransac_rmse
+                Z_pts = C[0]*points[:,0]**2. + C[1]*points[:,1]**2. + C[2]*points[:,0]*points[:,1] + C[3]*points[:,0] + C[4]*points[:,1] + C[5]
+                errors = points[:,2] - Z_pts
+
+        #dZ_residuals = np.linalg.norm(errors)
+        fxx=C[0]
+        fyy=C[1]
+        fxy=C[2]
+        fx=C[3]
+        fy=C[4]
+        #mean curvature (arithmetic average)
+        c_m = - ( (1 + (fy**2))*fxx - 2*fxy*fx*fy+ (1 + (fx**2))*fyy ) / (2*( (fx**2) + (fy**2) + 1)**(3/2) )
+        
+        #tangential (normal to gradient) curvature
+        c_t = - ( ( fxx*(fy**2) - 2*fxy * fx * fy + fyy * (fx**2) ) / ( ( (fx**2) + (fy**2) ) * ((fx**2) + (fy**2) + 1)**(1/2) ) )
+        
+        #difference (range of profile and tangential)
+        c_d = c_m - c_t
+        
+        #profile (vertical or gradient direction) curvature
+        c_p = c_m + c_d
+        
+        #contour (horizontal or contour direction)
+        c_c = - ( ( fxx * (fx**2) - 2 * fxy * fx * fy + fyy * (fx**2) ) / ( ( (fx**2) + (fy**2) )**(3/2) ) )
+        
+        Curvature = 2*fxx + 2*fyy
+        curv_contour = Curvature
+        #curv_contour = c_c
+        curv_tan = c_t
+        curv_profc = c_p
+        slope = np.sqrt( fx**2 + fy**2 )
+
     elif order == 4:
         # best-fit fourth-order polynomial
         #Z = Ax²y² + Bx²y + Cxy² + Dx² + Ey² + Fxy + Gx + Hy + I
@@ -175,31 +223,208 @@ def curvFit_lstsq_polygon(points, order=2):
         #G = (-Z4 + Z6) / 2L
         #H = (Z2 - Z8) / 2L
         #I = Z5
-        #Curvature = -2(D + E) * 100        
-        A = np.c_[points[:,0]**2. * points[:,1]**2., points[:,0]**2. * points[:,1], points[:,0] * points[:,1]**2., \
-                  points[:,0]**2., points[:,1]**2., points[:,0]*points[:,1], \
-                  points[:,0], points[:,1], np.ones(points.shape[0])]
+        A = np.c_[points[:,0]**2. * points[:,1]**2., \
+                  points[:,0]**2. * points[:,1], \
+                  points[:,0] * points[:,1]**2., \
+                  points[:,0]**2., \
+                  points[:,1]**2., \
+                  points[:,0]*points[:,1], \
+                  points[:,0], points[:,1], \
+                  np.ones(points.shape[0]) ]
         C,_,_,_ = linalg.lstsq(A, points[:,2])    # coefficients
-        Z_pts = C[0]*points[:,0]**2. * points[:,1]**2. + C[1]*points[:,0]**2.*points[:,1] + C[2]*points[:,0]*points[:,1]**2. \
-            + C[3]*points[:,0]**2. + C[4]*points[:,1]**2. + C[5]*points[:,0]*points[:,1] \
+        Z_pts = C[0]*(points[:,0]**2.) * (points[:,1]**2.) \
+            + C[1]*(points[:,0]**2.) * points[:,1] \
+            + C[2]*points[:,0] * (points[:,1]**2.) \
+            + C[3]*(points[:,0]**2.) + C[4]*points[:,1]**2. \
+            + C[5]*points[:,0] * points[:,1] \
             + C[6]*points[:,0] + C[7]*points[:,1] + C[8]
+        errors = points[:,2] - Z_pts
+        mse = (np.square(errors)).mean(axis=0)
+        rmse = np.sqrt(mse)
+        #dZ_residuals = np.linalg.norm(errors)
+        if inps.ransac_on == 1:
+            d = 16
+            C_p4_ransac, C_p4_ransac_rmse = ransac_polyfit(points, order=4, n=12, k=200, t=rmse, d=d, f=0.5)
+            if np.array(C_p4_ransac).size > 1:
+                #use RANSAC model
+                C=C_p4_ransac
+                rmse = C_p4_ransac_rmse
+                Z_pts = C[0]*(points[:,0]**2.) * (points[:,1]**2.) \
+                    + C[1]*(points[:,0]**2.) * points[:,1] \
+                    + C[2]*points[:,0] * (points[:,1]**2.) \
+                    + C[3]*(points[:,0]**2.) + C[4]*points[:,1]**2. \
+                    + C[5]*points[:,0] * points[:,1] \
+                    + C[6]*points[:,0] + C[7]*points[:,1] + C[8]
+                errors = points[:,2] - Z_pts
+
         fx=C[6]
         fy=C[7]
         fxx=C[3]
         fxy=C[5]
-        fyy=C[4]        
-        curv_profc = - (fx**2. * fxx + 2*fx * fy * fxy + fy**2. * fyy) / ( (fx**2. + fy**2.) * (1 + fx**2. + fy**2.)**(3/2) );
-        #curv_planc = - (fy**2. * fxx + 2*fx * fy * fxy + fx**2. * fyy) / ( (fx**2. + fy**2.)**(3/2) )
-        curv_meanc = - ((1 + fy**2) * fxx - 2 * fxy * fx * fy + (1 + fx**2) * fyy) / (2 * (fx**2 + fy**2 + 1)**(3/2) )
-        curv_tan = - (fy**2. * fxx + 2*fx * fy * fxy + fx**2 * fyy) / ( (fx**2 + fy**2) * (1 + fx**2 + fy**2)**(1/2) )
- 
-        #curvature_total = C[4]**2. + 2*C[6]**2. + C[5]**2.
-        curvature = -2 * (C[3] + C[4]) * 100
-        slope = np.sqrt( fx**2. + fy**2. )
-        errors = points[:,2] - Z_pts
-        dZ_residuals = np.linalg.norm(errors)
+        fyy=C[4]
+        #mean curvature (arithmetic average)
+        c_m = - ( (1 + (fy**2))*fxx - 2*fxy*fx*fy+ (1 + (fx**2))*fyy ) / (2*( (fx**2) + (fy**2) + 1)**(3/2) )
+        
+        #tangential (normal to gradient) curvature
+        c_t = - ( ( fxx*(fy**2) - 2*fxy * fx * fy + fyy * (fx**2) ) / ( ( (fx**2) + (fy**2) ) * ((fx**2) + (fy**2) + 1)**(1/2) ) )
+        
+        #difference (range of profile and tangential)
+        c_d = c_m - c_t
+        
+        #profile (vertical or gradient direction) curvature
+        c_p = c_m + c_d
+        
+        #contour (horizontal or contour direction)
+        c_c = - ( ( fxx * (fx**2) - 2 * fxy * fx * fy + fyy * (fx**2) ) / ( np.sqrt( ( (fx**2) + (fy**2) )**(2) ) ) )
+
+#        p = fx
+#        q = fy
+#        r = fxx
+#        s = fxy
+#        t = fyy
+#        curv_k_h = - ( ( (q**2) * r - 2*p*q*s + (p**2) * t) / ( ((p**2) + (q**2)) * np.sqrt(1 + (p**2) + (q**2)) ) )
+#        curv_k_v = - ( ( (p**2) * r + 2*p*q*s + (q**2) * t) / ( ((p**2) + (q**2)) * np.sqrt( (1 + (p**2) + (q**2))**3 ) ) )
+
+        Curvature = 2*fxx + 2*fyy
+        curv_contour = Curvature
+        #curv_contour = c_c
+        curv_tan = c_t
+        curv_profc = c_p
+        slope = np.sqrt( fx**2 + fy**2 )
     del A, Z_pts
-    return slope, curv_meanc, curv_tan, curv_profc, dZ_residuals, errors, C
+    return slope, curv_contour, curv_tan, curv_profc, rmse, errors, C
+
+def ransac_polyfit(points, order=2, n=9, k=200, t=0.05, d=18, f=0.6):
+  # Thanks https://en.wikipedia.org/wiki/Random_sample_consensus  
+  # n – minimum number of data points required to fit the model, 
+  # SUGGESTED to set this to 6 for p=2 and 12 for p=4
+
+
+  # k – maximum number of iterations allowed in the algorithm, 200
+
+  # t – threshold value to determine when a data point fits a model
+  # currently set to RMSE
+  
+  # d – number of close data points required to assert that a model fits well to data
+
+  # f – fraction of close data points required, f=0.5
+  
+    besterr = np.inf
+    bestfit = None
+    thismodel_rmse = np.inf
+    for kk in range(k):
+        maybeinliers = np.random.randint(len(points), size=n)
+        #initial point selection could be improved by using neighborhood density
+        rest_of_data = np.arange(0,len(points))
+        rest_of_data = np.delete(rest_of_data, maybeinliers)
+        if order == 1:
+            A = np.c_[points[maybeinliers,0], points[maybeinliers,1], np.ones(len(maybeinliers))]
+            C_maybemodel,_,_,_ = linalg.lstsq(A, points[maybeinliers,2])    # coefficients
+            maybemodel_Z_pts = C_maybemodel[0]*points[maybeinliers,0] + C_maybemodel[1]*points[maybeinliers,1] + C_maybemodel[2]
+        if order == 2:
+            A = np.c_[points[maybeinliers,0]**2., \
+                      points[maybeinliers,1]**2., \
+                      points[maybeinliers,0]*points[maybeinliers,1], \
+                      points[maybeinliers,0], points[maybeinliers,1], np.ones(len(maybeinliers))]
+            C_maybemodel,_,_,_ = linalg.lstsq(A, points[maybeinliers,2])    # coefficients
+            maybemodel_Z_pts = C_maybemodel[0]*points[maybeinliers,0]**2. + C_maybemodel[1]*points[maybeinliers,1]**2. \
+                + C_maybemodel[2]*points[maybeinliers,0]*points[maybeinliers,1] \
+                + C_maybemodel[3]*points[maybeinliers,0] + C_maybemodel[4]*points[maybeinliers,1] + C_maybemodel[5]
+        if order == 4:
+            A = np.c_[points[maybeinliers,0]**2. * points[maybeinliers,1]**2., \
+                      points[maybeinliers,0]**2. * points[maybeinliers,1], \
+                      points[maybeinliers,0] * points[maybeinliers,1]**2., \
+                      points[maybeinliers,0]**2., \
+                      points[maybeinliers,1]**2., \
+                      points[maybeinliers,0]*points[maybeinliers,1], \
+                      points[maybeinliers,0], points[maybeinliers,1], \
+                      np.ones(len(maybeinliers)) ]
+            C_maybemodel,_,_,_ = linalg.lstsq(A, points[maybeinliers,2])    # coefficients
+            maybemodel_Z_pts = C_maybemodel[0]*(points[maybeinliers,0]**2.) * (points[maybeinliers,1]**2.) \
+                + C_maybemodel[1]*(points[maybeinliers,0]**2.) * points[maybeinliers,1] \
+                + C_maybemodel[2]*points[maybeinliers,0] * (points[maybeinliers,1]**2.) \
+                + C_maybemodel[3]*(points[maybeinliers,0]**2.) + C_maybemodel[4]*points[maybeinliers,1]**2. \
+                + C_maybemodel[5]*points[maybeinliers,0] * points[maybeinliers,1] \
+                + C_maybemodel[6]*points[maybeinliers,0] + C_maybemodel[7]*points[maybeinliers,1] + C_maybemodel[8]
+        maybemodel_residuals = maybemodel_Z_pts  - points[maybeinliers,2]
+        maybemodel_idx = np.abs(maybemodel_residuals) < t
+        mse = (np.square(maybemodel_residuals)).mean(axis=0)
+        maybemodel_rmse = np.sqrt(mse)
+
+        #getting residuals for all points BUT the initial maybeinliers
+        if order == 1:
+            maybealsoinlier_Z_pts = C_maybemodel[0]*points[rest_of_data,0] + C_maybemodel[1]*points[rest_of_data,1] + C_maybemodel[2]
+        if order == 2:
+            maybealsoinlier_Z_pts = C_maybemodel[0]*points[rest_of_data,0]**2. + C_maybemodel[1]*points[rest_of_data,1]**2. \
+                + C_maybemodel[2]*points[rest_of_data,0]*points[rest_of_data,1] \
+                + C_maybemodel[3]*points[rest_of_data,0] + C_maybemodel[4]*points[rest_of_data,1] + C_maybemodel[5]
+        if order == 4:
+            maybealsoinlier_Z_pts = C_maybemodel[0]*(points[rest_of_data,0]**2.) * (points[rest_of_data,1]**2.) \
+                + C_maybemodel[1]*(points[rest_of_data,0]**2.) * points[rest_of_data,1] \
+                + C_maybemodel[2]*points[rest_of_data,0] * (points[rest_of_data,1]**2.) \
+                + C_maybemodel[3]*(points[rest_of_data,0]**2.) + C_maybemodel[4]*points[rest_of_data,1]**2. \
+                + C_maybemodel[5]*points[rest_of_data,0] * points[rest_of_data,1] \
+                + C_maybemodel[6]*points[rest_of_data,0] + C_maybemodel[7]*points[rest_of_data,1] + C_maybemodel[8]
+        maybealsoinliers_residuals = maybealsoinlier_Z_pts  - points[rest_of_data,2]
+        mse = (np.square(maybealsoinliers_residuals)).mean(axis=0)
+        maybealsoinliers_rmse = np.sqrt(mse)
+        
+        maybemodel_alsoinliers = np.abs(maybealsoinliers_residuals) < t
+        maybemodel_alsoinliers_idx = rest_of_data[maybemodel_alsoinliers]
+        
+        if len(maybemodel_alsoinliers) > 0:
+            mse = (np.square(maybealsoinliers_residuals[maybemodel_alsoinliers])).mean(axis=0)
+        else:
+            mse = np.nan
+        maybealsoinliers_after_threshold_rmse = np.sqrt(mse)
+        
+        maybe_inliers_all_sum = sum(maybemodel_alsoinliers)+sum(maybemodel_idx)
+#        print('%02d: initial model rmse=%1.3f, maybe-inlier rmse=%1.3f, after t rmse=%1.3f (pts: %02d)'%\
+#              (kk, maybemodel_rmse, maybealsoinliers_rmse, maybealsoinliers_after_threshold_rmse, maybe_inliers_all_sum))
+        
+        if maybe_inliers_all_sum > d and maybe_inliers_all_sum > len(points)*f:
+            #repeat fit with maybemodel_alsoinliers_idx and maybeinliers
+            maybe_bettermodel_idx = np.concatenate((maybemodel_alsoinliers_idx, maybeinliers))
+            maybemodel_alsoinliers_idx
+            if order == 1:
+                A = np.c_[points[maybe_bettermodel_idx,0], points[maybe_bettermodel_idx,1], np.ones(len(maybe_bettermodel_idx))]
+                C_bettermodel,_,_,_ = linalg.lstsq(A, points[maybe_bettermodel_idx,2])    # coefficients
+                bettermodel_Z_pts = C_bettermodel[0]*points[maybemodel_alsoinliers_idx,0] + C_bettermodel[1]*points[maybemodel_alsoinliers_idx,1] + C_bettermodel[2]
+            if order == 2:
+                A = np.c_[points[maybe_bettermodel_idx,0]**2., \
+                  points[maybe_bettermodel_idx,1]**2., \
+                  points[maybe_bettermodel_idx,0]*points[maybe_bettermodel_idx,1], \
+                  points[maybe_bettermodel_idx,0], points[maybe_bettermodel_idx,1], np.ones(len(maybe_bettermodel_idx))]    
+                C_bettermodel,_,_,_ = linalg.lstsq(A, points[maybe_bettermodel_idx,2])    # coefficients
+                bettermodel_Z_pts = C_bettermodel[0]*points[maybemodel_alsoinliers_idx,0]**2. + C_bettermodel[1]*points[maybemodel_alsoinliers_idx,1]**2. \
+                    + C_bettermodel[2]*points[maybemodel_alsoinliers_idx,0]*points[maybemodel_alsoinliers_idx,1] \
+                    + C_bettermodel[3]*points[maybemodel_alsoinliers_idx,0] + C_bettermodel[4]*points[maybemodel_alsoinliers_idx,1] + C_bettermodel[5]
+            if order == 4:
+                A = np.c_[points[maybe_bettermodel_idx,0]**2. * points[maybe_bettermodel_idx,1]**2., \
+                          points[maybe_bettermodel_idx,0]**2. * points[maybe_bettermodel_idx,1], \
+                          points[maybe_bettermodel_idx,0] * points[maybe_bettermodel_idx,1]**2., \
+                          points[maybe_bettermodel_idx,0]**2., \
+                          points[maybe_bettermodel_idx,1]**2., \
+                          points[maybe_bettermodel_idx,0]*points[maybe_bettermodel_idx,1], \
+                          points[maybe_bettermodel_idx,0], points[maybe_bettermodel_idx,1], \
+                          np.ones(len(maybe_bettermodel_idx)) ]
+                C_bettermodel,_,_,_ = linalg.lstsq(A, points[maybe_bettermodel_idx,2])    # coefficients
+                bettermodel_Z_pts = C_bettermodel[0]*(points[maybemodel_alsoinliers_idx,0]**2.) * (points[maybemodel_alsoinliers_idx,1]**2.) \
+                    + C_bettermodel[1]*(points[maybemodel_alsoinliers_idx,0]**2.) * points[maybemodel_alsoinliers_idx,1] \
+                    + C_bettermodel[2]*points[maybemodel_alsoinliers_idx,0] * (points[maybemodel_alsoinliers_idx,1]**2.) \
+                    + C_bettermodel[3]*(points[maybemodel_alsoinliers_idx,0]**2.) + C_bettermodel[4]*points[maybemodel_alsoinliers_idx,1]**2. \
+                    + C_bettermodel[5]*points[maybemodel_alsoinliers_idx,0] * points[maybemodel_alsoinliers_idx,1] \
+                    + C_bettermodel[6]*points[maybemodel_alsoinliers_idx,0] + C_bettermodel[7]*points[maybemodel_alsoinliers_idx,1] + C_bettermodel[8]
+            this_residual = bettermodel_Z_pts  - points[maybemodel_alsoinliers_idx,2]
+            mse = (np.square(this_residual)).mean(axis=0)
+            thismodel_rmse = np.sqrt(mse)
+#            print('\tbettermodel RMSE: %03f'%(thismodel_rmse))
+        
+            if thismodel_rmse < besterr:
+                bestfit = C_bettermodel
+                besterr = thismodel_rmse
+    return bestfit, besterr
+
 
 def gdal_grid_interpolate(x_coords, y_coords, ncols, nrows,resolution_m, layer_in, zfield, input_vrt, output_grid,radius1=0, radius2=0, grid_datatype='Float32', cliplayer='', interpolation_method='lin'):
     #Use gdal_grid to interpolate from point data to grid
@@ -295,34 +520,33 @@ def calc_stats_for_seed_points(k):
     pts_xyz = pc_xyz[pc_xyz_distance_id[k][ids2use]]
     #Make sure there are no points selected twice (remove them)
     pts_xyz = np.unique(pts_xyz,axis=0)
+    pts_xyz_meanpt = np.mean(pts_xyz, axis=0)
         
     nr_pts_xyz = pts_xyz.shape[0]
     if inps.mean_z_only == 1:
         #only calculate mean elevation for grid-cell size
-        if pts_xyz.shape[0] < inps.pt_lower_threshold:
-            pts_xyz_meanpt = np.nan
-            #pts_xyz_normal = np.nan
+        if nr_pts_xyz < inps.pt_lower_threshold:
             pts_seed_stats = np.array([pc_xyz_rstep_seed[k,0], pc_xyz_rstep_seed[k,1], pc_xyz_rstep_seed[k,2], 
                        np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, 
-                       np.nan, np.nan, np.nan, np.nan, np.nan, nr_pts_xyz, np.nan, np.nan, np.nan])
+                       np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, nr_pts_xyz, np.nan, np.nan, np.nan, np.nan, np.nan,
+                       np.nan, np.nan, np.nan])
             dxyzn = np.empty((dxyzn_max_nre, 4))
             dxyzn.fill(np.nan)
         else:
             pts_seed_stats = np.array([pc_xyz_rstep_seed[k,0], pc_xyz_rstep_seed[k,1], pc_xyz_rstep_seed[k,2], 
                            np.mean(pts_xyz[:,0]), np.mean(pts_xyz[:,1]), np.mean(pts_xyz[:,2]), 
                            np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, 
-                           np.nan, np.nan, np.nan, np.nan, np.nan, nr_pts_xyz, np.nan, np.nan, np.nan])
+                           np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, nr_pts_xyz, np.nan, np.nan, np.nan, np.nan, np.nan,
+                           np.nan, np.nan, np.nan])
             dxyzn = np.empty((dxyzn_max_nre, 4))
             dxyzn.fill(np.nan)
         return pts_seed_stats, dxyzn
         
-    if pts_xyz.shape[0] < inps.pt_lower_threshold:
-        #print('Less than %d points, plane fitting not meaningful for k = %s'%(inps.pt_lower_threshold,"{:,}".format(k)))
-        pts_xyz_meanpt = np.nan
-        #pts_xyz_normal = np.nan
+    if nr_pts_xyz < inps.pt_lower_threshold:
         pts_seed_stats = np.array([pc_xyz_rstep_seed[k,0], pc_xyz_rstep_seed[k,1], pc_xyz_rstep_seed[k,2], 
                    np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, 
-                   np.nan, np.nan, np.nan, np.nan, np.nan, nr_pts_xyz, np.nan, np.nan, np.nan])
+                   np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, nr_pts_xyz, np.nan, np.nan, np.nan, np.nan, np.nan,
+                   np.nan, np.nan, np.nan])
         dxyzn = np.empty((dxyzn_max_nre, 4))
         dxyzn.fill(np.nan)
     else:
@@ -331,12 +555,25 @@ def calc_stats_for_seed_points(k):
         #pts_xyz_meanpt, pts_xyz_normal, plane_residual = planeFit(pts_xyz.T)
 
         #Instead use least square approach of fitting plane
-        p1_slope_lstsq,_,_,_,p1_slope_lstsq_residual,p1_dz,C_p1 = curvFit_lstsq_polygon(pts_xyz.T, order=1)
+        p1_slope_lstsq,_,_,_,p1_rmse,p1_dz,C_p1 = curvFit_lstsq_polygon(np.copy(pts_xyz.T), order=1)
 
         #calculate curvature
-        p2_slope_lstsq, curvature_lstsq, _, _, curv_residuals,p2_dz,C_p2 = curvFit_lstsq_polygon(pts_xyz.T, order=2)
-
-        pts_xyz_meanpt = np.mean(pts_xyz, axis=0)
+        p2_slope_lstsq, p2_curv_contour, p2_curv_tan, p2_curv_profc, p2_rmse, p2_dz, C_p2 = curvFit_lstsq_polygon(np.copy(pts_xyz.T), order=2)
+        if nr_pts_xyz >= 12:
+            p4_slope_lstsq, p4_curv_contour, p4_curv_tan, p4_curv_profc, p4_rmse, p4_dz, C_p4 = curvFit_lstsq_polygon(np.copy(pts_xyz.T), order=4)
+            #verify if polyfit 4 is useful: if residual is < p2 residual, use p4
+#            if np.abs(p4_rmse-p2_rmse) < 1e-2:
+#                p4_slope_lstsq = np.nan
+#                p4_rmse = np.nan
+#                p4_curv_contour = np.nan
+#                p4_curv_tan = np.nan
+#                p4_curv_profc = np.nan               
+        else:
+            p4_rmse = np.nan
+            p4_curv_contour = np.nan
+            p4_curv_tan = np.nan
+            p4_curv_profc = np.nan
+        
 
         #normalize /detrend points with planeFit results - DO NOT USE FOR LIDAR PC
         #d = -pts_xyz_meanpt.dot(pts_xyz_normal)
@@ -346,12 +583,16 @@ def calc_stats_for_seed_points(k):
         #dz = pts_xyz[:,2] - z
     
         #Plotting for testing purposes
-        if inps.plot_plane_fits == 1 and nr_pts_xyz >= 10:
-            plot_seed_pts_neighborhood_3d_fn=os.path.join(map_dir,'PlaneFit_seed%08d.png'%k)
-            plot_seed_pts_neighborhood_3d(pts_xyz, C_p1, C_p2, p1_dz, p2_dz, plot_seed_pts_neighborhood_3d_fn)
+        if inps.plot_plane_fits == 1 and nr_pts_xyz >= 16:
+            if len(C_p2) > 5 and len(C_p4) > 8:
+                plot_seed_pts_neighborhood_3d_fn=os.path.join(map_dir,'PlaneFit_seed%08d.png'%k)
+                plot_seed_pts_neighborhood_3d(pts_xyz, C_p1, C_p2, C_p4, p1_dz, p2_dz, p4_dz, plot_seed_pts_neighborhood_3d_fn)
         
         #Using least squared linear (p1) fitting results for normalizing plane
-        dz=p1_dz
+        #dz=p1_dz
+
+        #Using least squared p2 fitting results for normalizing plane
+        dz=p2_dz
 
         #stack points into X, Y, Z, delta-Z for each point
         dxyzn = np.empty((dxyzn_max_nre, 4))
@@ -363,18 +604,20 @@ def calc_stats_for_seed_points(k):
         #5: Mean-Z, 6: Z-min, 7: Z-max, 8: Dz-max, 9: Dz-min, 
         #10: Dz-std.dev, 11: Dz-range, 12: Dz-90-10th percentile range, 13: Dz-75-25th percentile range, 14: variance dz, 
         #15: Slp linear, 16: Slp-linear residual, 17: Slp_p2, 18: Slp_p2 residual, 19: nr. of lidar points, 
-        #20: curvature_lstsq, 21: std. dev. of Z
+        #20: p2_curv_contour, 21: p2_curv_tan, 22: p2_curv_profc, 
+        #23: p4_curv_contour, 24: p4_curv_tan, 25: p4_curv_profc, 26: p4_rmse, 27: std. dev. of Z
         pts_seed_stats = np.array([pc_xyz_rstep_seed[k,0], pc_xyz_rstep_seed[k,1], pc_xyz_rstep_seed[k,2], 
                        pts_xyz_meanpt[0], pts_xyz_meanpt[1], pts_xyz_meanpt[2], 
                        np.min(pts_xyz, axis=0)[2], np.max(pts_xyz, axis=0)[2], dz.max(), dz.min(), \
                        np.std(dz), dz.max()-dz.min(), np.percentile(dz, 90)-np.percentile(dz,10), \
                        np.percentile(dz, 75)-np.percentile(dz,25), np.var(dz), \
-                       p1_slope_lstsq, p1_slope_lstsq_residual, p2_slope_lstsq, curv_residuals, \
-                       nr_pts_xyz, curvature_lstsq, np.nanstd(pts_xyz[:,2])])
+                       p1_slope_lstsq, p1_rmse, p2_slope_lstsq, p2_rmse, \
+                       nr_pts_xyz, p2_curv_contour, p2_curv_tan, p2_curv_profc,  \
+                       p4_curv_contour, p4_curv_tan, p4_curv_profc, p4_rmse, np.nanstd(pts_xyz[:,2])])
     return pts_seed_stats, dxyzn
 
 
-def plot_seed_pts_neighborhood_3d(pts_xyz, C_p1, C_p2, p1_dz, p2_dz, plot_seed_pts_neighborhood_3d_fn):
+def plot_seed_pts_neighborhood_3d(pts_xyz, C_p1, C_p2, C_p4, p1_dz, p2_dz, p4_dz, plot_seed_pts_neighborhood_3d_fn):
 #For testing purposes: plot pointcloud
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
@@ -407,17 +650,21 @@ def plot_seed_pts_neighborhood_3d(pts_xyz, C_p1, C_p2, p1_dz, p2_dz, plot_seed_p
     X,Y = np.meshgrid(xlim, ylim)
     Z_p1 = C_p1[0]*X + C_p1[1]*Y + C_p1[2]
     Z_p2 = C_p2[0]*X**2. + C_p2[1]*Y**2. + C_p2[2]*X*Y + C_p2[3]*X + C_p2[4]*Y + C_p2[5]
+    Z_p4 = C_p4[0]*X**2. * Y**2. + C_p4[1]*X**2.*Y + C_p4[2]*X*Y**2. \
+        + C_p4[3]*X**2. + C_p4[4]*Y**2. + C_p4[5]*X*Y \
+        + C_p4[6]*X + C_p4[7]*Y + C_p4[8]
 
     fig = plt.figure(figsize=(16.53*1.5,11.69*1.5), dpi=150)
     ax = fig.add_subplot(121, projection='3d')
     ax.scatter(pts_xyz[:,0], pts_xyz[:,1], pts_xyz[:,2], c='b', marker='.', s=72*2)
-    ax.scatter(pts_xyz_meanpt[0], pts_xyz_meanpt[1], pts_xyz_meanpt[2], c='r', marker='x',s=96*2)
+    ax.scatter(pts_xyz_meanpt[0], pts_xyz_meanpt[1], pts_xyz_meanpt[2], c='k', marker='x',s=96*2)
     ax.plot_wireframe(X,Y,Z_p1, color='k')
     ax.plot_wireframe(X,Y,Z_p2, color='b')
+    ax.plot_wireframe(X,Y,Z_p4, color='r')
     ax.set_xlabel('UTM-X (m)', fontsize=18)
     ax.set_ylabel('UTM-Y (m)', fontsize=18)
     ax.set_zlabel('UTM-Z (m)', fontsize=18)
-    ax.set_title('Points and plane (Z_p1: k, Z_p2:blue)', fontsize=24)    
+    ax.set_title('Points and plane (p1: k, p2:blue, p4: red)', fontsize=24)    
 
     ax2 = fig.add_subplot(122)
     A = np.array([pts_xyz[:,0], pts_xyz[:,1]]).T
@@ -429,6 +676,7 @@ def plot_seed_pts_neighborhood_3d(pts_xyz, C_p1, C_p2, p1_dz, p2_dz, plot_seed_p
     distances = np.nanmin(dist_mat, axis=1)
     ax2.scatter(distances, p1_dz, c='k', marker='.', s=72*2)
     ax2.scatter(distances, p2_dz, c='b', marker='+', s=72*2)
+    ax2.scatter(distances, p4_dz, c='r', marker='x', s=72*2)
     ax2.set_xlabel('Eucledian Distance between X-Y points (m)', fontsize=18)
     ax2.set_ylabel('normalized height by plane, Dz (m)', fontsize=18)
     ax2.set_title('Normalized Heights', fontsize=24)    
@@ -454,18 +702,17 @@ def pc_seed_random_k_subsampling(pc_xyz, pc_xyz_rstep_seed, pc_xyz_seed_pts_id, 
     counter = 0
     for i in range(n):
         current_indices = np.array(pc_xyz_seed_pts_id[i][pc_xyz_seed_pts_id[i].mask==False])
-        random_numbers = np.random.randint(0,len(current_indices),size=(k))
-        if len(current_indices) >= k:
-            pc_xyzg_k_random[counter:counter+k,0] = pc_xyz[ current_indices[ random_numbers.astype('int8') ], 0]
-            pc_xyzg_k_random[counter:counter+k,1] = pc_xyz[ current_indices[ random_numbers.astype('int8') ], 1]
-            pc_xyzg_k_random[counter:counter+k,2] = pc_xyz[ current_indices[ random_numbers.astype('int8') ], 2]
-            counter = counter + k
-        elif len(current_indices) < k:
-            #print('\tpc_seed_random_k_subsampling: Did not find k=%d number of neighbors (found=%d).\n\tReduce nr. of neighborhood points or increase radius.'%(k, len(current_indices)))
+        if len(current_indices) < k:
             pc_xyzg_k_random[counter:counter+len(current_indices),0] = pc_xyz[ current_indices, 0]
             pc_xyzg_k_random[counter:counter+len(current_indices),1] = pc_xyz[ current_indices, 1]
             pc_xyzg_k_random[counter:counter+len(current_indices),2] = pc_xyz[ current_indices, 2]
             counter = counter + len(current_indices)
+        elif len(current_indices) >= k:
+            random_indices = np.random.choice(current_indices, size=(k))
+            pc_xyzg_k_random[counter:counter+k,0] = pc_xyz[ random_indices, 0]
+            pc_xyzg_k_random[counter:counter+k,1] = pc_xyz[ random_indices, 1]
+            pc_xyzg_k_random[counter:counter+k,2] = pc_xyz[ random_indices, 2]
+            counter = counter + k
         else:
             pc_xyzg_k_random[counter:counter+len(current_indices),0] = pc_xyz[ current_indices, 0]
             pc_xyzg_k_random[counter:counter+len(current_indices),1] = pc_xyz[ current_indices, 1]
@@ -509,15 +756,15 @@ if __name__ == '__main__':
 
     inps = cmdLineParser()
 
-## Testing
+# Testing
 #    inps = argparse.ArgumentParser(description='PointCloud (PC) processing for DEM statistics. Deriving gridded ground data (elevation and slope) using centroid coordinates. B. Bookhagen (bodo.bookhagen@uni-potsdam.de), V0.1 Oct 2018.')
 #    inps.nr_of_cores = 0
-#    inps.inlas = 'Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2.las'
-#    inps.raster_m_range='1 10 1'
+#    inps.inlas = 'Pozo_cat16.laz'
+#    inps.raster_m_range='1 5 1'
 #    inps.shapefile_clip = 'Pozo_DTM_noveg_UTM11_NAD83_cat16.shp'
 #    inps.epsg_code=26911
 #    inps.max_nr_of_neighbors_kdtree = 100
-#    inps.pt_lower_threshold = 3
+#    inps.pt_lower_threshold = 5
 #    inps.create_geotiff = 1
 #    inps.create_las = 1
 #    inps.create_gmt = 0
@@ -525,8 +772,9 @@ if __name__ == '__main__':
 #    inps.mean_z_only=0
 #    inps.subsample_1m_pc_k = 10
 #    inps.subsample_1m_pc_p = 0
-#    inps.k_nr_of_neighbors = 10
+#    inps.k_nr_of_neighbors = 5
 #    inps.plot_plane_fits = 0
+#    inps.ransac_on = 0
     
 
     if inps.subsample_1m_pc_k > 0 and inps.subsample_1m_pc_p > 0:
@@ -580,6 +828,7 @@ if __name__ == '__main__':
     inFile = File(inps.inlas, mode='r')
     pc_xyz = np.vstack((inFile.get_x()*inFile.header.scale[0]+inFile.header.offset[0], inFile.get_y()*inFile.header.scale[1]+inFile.header.offset[1], inFile.get_z()*inFile.header.scale[2]+inFile.header.offset[2])).transpose()
     pc_xy = np.vstack((inFile.get_x()*inFile.header.scale[0]+inFile.header.offset[0], inFile.get_y()*inFile.header.scale[1]+inFile.header.offset[1])).transpose()
+    #pc_i = np.vstack((inFile.get_intensity())).transpose()
     #pc_xyz is now a point cloud with x, y, z
     print('\tLoaded %s points'%"{:,}".format(pc_xyz.shape[0]))
     
@@ -760,10 +1009,10 @@ if __name__ == '__main__':
         #test if data were already processed and saved as H5:
         hdf5_fn = str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_seed_pts_stats_raster_%0.2fm.h5'%current_rstep_size
         pc_results_fn = os.path.join(hdf_dir, hdf5_fn)
-        if os.path.exists(pc_results_fn) == True:
-            print('\tLoading data from existing file:  %s '%hdf5_fn)
-            #Still need to add
-            #hdf_in = h5py.File(pc_results_fn,'r')
+#        if os.path.exists(pc_results_fn) == True:
+#            print('\tLoading data from existing file:  %s '%hdf5_fn)
+#            #Still need to add
+#            #hdf_in = h5py.File(pc_results_fn,'r')
             
         #using the 2D KDTree to find the points that are closest to the defined 2D raster overlay
         [pc_xy_pykdtree_distance, pc_xy_pykdtree_id] = pc_xy_pykdtree.query(xy_coordinates, k=1)
@@ -803,7 +1052,7 @@ if __name__ == '__main__':
         ## Setup variables
         pc_xyz_distance_nr = len(pc_xyz_distance)
         nr_of_seed_points = len(pc_xyz_rstep_seed)
-        nr_of_datasets = 22 #nr of columns to save
+        nr_of_datasets = 28 #nr of columns to save
         nr_of_processes = 100 #splitting the for loop into 100 processes and dividing array into 100 steps in pos_array
         dxyzn_nre = np.sum([len(x) for x in pc_xyz_distance])
         print('\tNumber of total points in neighborhood array to be processed (dxyzn_nre): %s'%"{:,}".format(dxyzn_nre))
@@ -818,8 +1067,9 @@ if __name__ == '__main__':
         #0: Seed-X, 1: Seed-Y, 2: Seed-Z, 3: Mean-X, 4: Mean-Y, 
         #5: Mean-Z, 6: Z-min, 7: Z-max, 8: Dz-max, 9: Dz-min, 
         #10: Dz-std.dev, 11: Dz-range, 12: Dz-90-10th percentile range, 13: Dz-75-25th percentile range, 14: variance dz, 
-        #15: slope_p1_leastsq, 16: slope_p1_residuals, 17: nr. of lidar points, 18: slope_p2_lstsq, 19: curvature_lstsq, 
-        #20: curvature residuals, 21: std. dev. of Z
+        #15: Slp linear, 16: Slp-linear residual, 17: Slp_p2, 18: Slp_p2 residual, 19: nr. of lidar points, 
+        #20: p2_curv_contour, 21: p2_curv_tan, 22: p2_curv_profc, 
+        #23: p4_curv_contour, 24: p4_curv_tan, 25: p4_curv_profc, 26: p4_rmse, 27: std. dev. of Z
     
         ts = time.time()
         p = Pool(processes=np.round(inps.nr_of_cores).astype(int))
@@ -860,7 +1110,7 @@ if __name__ == '__main__':
         #write as compressed HDF file
         print('\tWriting to CSV, GMT, and shapefiles... ', end='', flush=True)
         #write csv
-        header_str='1SeedX, 2SeedY, 3SeedZ, 4MeanX, 5MeanY, 6MeanZ, 7Z_min, 8Z_max, 9Dz_max, 10Dz_min, 11Dz_std, 12Dz_range, 13Dz_9010p, 14Dz_7525p, 15Dz_var, 16Slp_p1, 17Slp_p1r, 18Slp_p2, 19Slp_p2r, 20Nr_lidar, 21CurvLSQ, 22StdZ'
+        header_str='1SeedX, 2SeedY, 3SeedZ, 4MeanX, 5MeanY, 6MeanZ, 7Z_min, 8Z_max, 9Dz_max, 10Dz_min, 11Dz_std, 12Dz_range, 13Dz_9010p, 14Dz_7525p, 15Dz_var, 16Slp_p1, 17Slp_p1r, 18Slp_p2, 19Slp_p2r, 20Nr_lidar, 21CC_p2, 22CT_p2, 23CP_p2, 24CC_p4, 25CT_p4, 26CP_p4, 27C_p4r, 28StdZ'
         seed_pts_stats_csv = '_seed_pts_stats_raster_%0.2fm.csv'%(current_rstep_size)
         pc_seed_pts_stats_csv_fn = os.path.join(vrt_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + seed_pts_stats_csv)
         seed_pts_stats_vrt = '_seed_pts_stats_raster_%0.2fm.vrt'%(current_rstep_size)
@@ -873,16 +1123,20 @@ if __name__ == '__main__':
         pc_seed_pts_stats_gmt_fn = os.path.join(vrt_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + seed_pts_stats_gmt)
         seed_pts_stats_dd_gmt = '_seed_pts_stats_raster_%0.2fm_dd.gmt'%(current_rstep_size)
         pc_seed_pts_stats_dd_gmt_fn = os.path.join(vrt_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + seed_pts_stats_dd_gmt)
-        idxnan = np.where(np.isnan(pts_seed_stats))
+        #idxnan = np.where(np.isnan(pts_seed_stats))
         if os.path.exists(pc_seed_pts_stats_csv_fn) == False:
             #before writing to CSV file, remove all lines with np.nan in pts_seed_stats
             pts_seed_stats_nonan = np.copy(pts_seed_stats)
-            idx_nodata = np.where(np.isnan(pts_seed_stats_nonan))
+            idx_nodata = np.where(np.isnan(pts_seed_stats_nonan[:,3]))
             rows2remove = np.unique(idx_nodata[0])
             pts_seed_stats_nonan = np.delete(pts_seed_stats_nonan, (rows2remove), axis=0)
+            idx_nodatax, idx_nodatay = np.where(np.isnan(pts_seed_stats_nonan))
+            pts_seed_stats_nonan[idx_nodatax,idx_nodatay] = -9999
+            #rows2remove = np.unique(idx_nodata[0])
+            #pts_seed_stats_nonan = np.delete(pts_seed_stats_nonan, (rows2remove), axis=0)
             np.savetxt(pc_seed_pts_stats_csv_fn, pts_seed_stats_nonan, fmt='%.4f', delimiter=',', header=header_str, comments='')
-        pts_seed_stats_nonan = None
-        idxnan = None
+            pts_seed_stats_nonan = None
+        #idxnan = None
     
         # write VRT for shapefile generation
         vrt_f = open(pc_seed_pts_stats_vrt_fn,'w')
@@ -913,8 +1167,14 @@ if __name__ == '__main__':
         vrt_f.write('\t\t\t<Field name="18Slp_p2" type="Real" width="8" precision="7"/>\n')
         vrt_f.write('\t\t\t<Field name="19Slp_p2r" type="Real" width="8" precision="7"/>\n')
         vrt_f.write('\t\t\t<Field name="20Nr_lidar" type="Real" width="8"/>\n')
-        vrt_f.write('\t\t\t<Field name="21CurvLSQ" type="Real" width="8" precision="7"/>\n')
-        vrt_f.write('\t\t\t<Field name="22StdZ" type="Real" width="8" precision="7"/>\n')
+        vrt_f.write('\t\t\t<Field name="21CC_p2" type="Real" width="8" precision="7"/>\n')
+        vrt_f.write('\t\t\t<Field name="22CT_p2" type="Real" width="8" precision="7"/>\n')
+        vrt_f.write('\t\t\t<Field name="23CP_p2" type="Real" width="8" precision="7"/>\n')
+        vrt_f.write('\t\t\t<Field name="24CC_p4" type="Real" width="8" precision="7"/>\n')
+        vrt_f.write('\t\t\t<Field name="25CT_p4" type="Real" width="8" precision="7"/>\n')
+        vrt_f.write('\t\t\t<Field name="26CP_p4" type="Real" width="8" precision="7"/>\n')
+        vrt_f.write('\t\t\t<Field name="27C_p4r" type="Real" width="8" precision="7"/>\n')
+        vrt_f.write('\t\t\t<Field name="28StdZ" type="Real" width="8" precision="7"/>\n')
         vrt_f.write('\t</OGRVRTLayer>\n')
         vrt_f.write('</OGRVRTDataSource>\n')
         vrt_f.close()
@@ -986,11 +1246,16 @@ if __name__ == '__main__':
             dz_std_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_dz_stddev.tif'%(current_rstep_size))
             dz_range9010_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_dz_range9010.tif'%(current_rstep_size))
             dz_iqr_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_dz_iqr.tif'%(current_rstep_size))
-            p1_slope_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_slope_p1_lstsq.tif'%(current_rstep_size))
-            p1_slope_res_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_slope_p1_lstsq_res.tif'%(current_rstep_size))
-            p2_slope_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_slope_p2_lstsq.tif'%(current_rstep_size))
-            p2_slope_res_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_slope_p2_lstsq_res.tif'%(current_rstep_size))
-            mean_curv_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_mean_curv.tif'%(current_rstep_size))
+            p1_slope_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_p1_slope.tif'%(current_rstep_size))
+            p1_rmse_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_p1_rmse.tif'%(current_rstep_size))
+            p2_slope_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_p2_slope.tif'%(current_rstep_size))
+            p2_rsme_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_p2_rmse.tif'%(current_rstep_size))
+            curv_contour_p2_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_p2_curv_contour.tif'%(current_rstep_size))
+            curv_tan_p2_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_p2_curv_tan.tif'%(current_rstep_size))
+            curv_profile_p2_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_p2_curv_profile.tif'%(current_rstep_size))
+            curv_contour_p4_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_p4_curv_contour.tif'%(current_rstep_size))
+            curv_tan_p4_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_p4_curv_tan.tif'%(current_rstep_size))
+            curv_profile_p4_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_p4_curv_profile.tif'%(current_rstep_size))
             z_mean_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_z_mean.tif'%(current_rstep_size))
 
             #interpolate nr_lidar_measurements
@@ -1023,7 +1288,7 @@ if __name__ == '__main__':
             #interpolation_method='invdist'
             
             if os.path.exists(nrlidar_tif_fn) == False:
-                print('nr_lidar_measurements, ', end='', flush=True)
+                print('nrm, ', end='', flush=True)
                 if os.path.exists(inps.shapefile_clip):
                     nr_lidar=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
                                                    zfield='20Nr_Lidar', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=nrlidar_tif_fn,\
@@ -1039,7 +1304,7 @@ if __name__ == '__main__':
                 ds = None
             
             if os.path.exists(z_std_tif_fn) == False:
-                print('z std. dev., ', end='', flush=True)
+                print('z sd, ', end='', flush=True)
                 if os.path.exists(inps.shapefile_clip):
                     z_std=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
                                                    zfield='22StdZ', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=z_std_tif_fn,\
@@ -1055,7 +1320,7 @@ if __name__ == '__main__':
                 ds = None
 
             if os.path.exists(dz_std_tif_fn) == False:
-                print('Dz std. dev., ', end='', flush=True)                
+                print('Dz sd, ', end='', flush=True)                
                 if os.path.exists(inps.shapefile_clip):
                     dz_std=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
                                                    zfield='11Dz_std', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=dz_std_tif_fn,\
@@ -1071,7 +1336,7 @@ if __name__ == '__main__':
                 ds = None
 
             if os.path.exists(z_mean_tif_fn) == False:
-                print('z mean, ', end='', flush=True)
+                print('z m, ', end='', flush=True)
                 if os.path.exists(inps.shapefile_clip):
                     z_mean=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
                                                    zfield='6MeanZ', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=z_mean_tif_fn,\
@@ -1088,7 +1353,7 @@ if __name__ == '__main__':
             
             #interpolate Dz_range 90-10 percentile
             if os.path.exists(dz_range9010_tif_fn) == False:
-                print('Dz range (90-10th perc.), ', end='', flush=True)
+                print('Dz r90-10p, ', end='', flush=True)
                 if os.path.exists(inps.shapefile_clip):
                     dz_range9010=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows, resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
                                                    zfield='13Dz_9010p', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=dz_range9010_tif_fn,\
@@ -1105,7 +1370,7 @@ if __name__ == '__main__':
             
             #interpolate Dz_range 75-25 percentile
             if os.path.exists(dz_iqr_tif_fn) == False:
-                print('Dz range (75-25th perc.), ', end='', flush=True)
+                print('Dz IQR, ', end='', flush=True)
                 if os.path.exists(inps.shapefile_clip):
                     dz_iqr=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
                                                    zfield='14Dz_7525p', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=dz_iqr_tif_fn,\
@@ -1138,25 +1403,25 @@ if __name__ == '__main__':
                 ds = None
 
             #interpolate Plane_slope - residuals
-            if os.path.exists(p1_slope_res_tif_fn) == False:
-                print('slope p1-least squared residuals, ', end='', flush=True)
+            if os.path.exists(p1_rmse_tif_fn) == False:
+                print('slope p1r, ', end='', flush=True)
                 if os.path.exists(inps.shapefile_clip):
-                    p1_slope_res=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
-                                                   zfield='17Slp_p1r', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=p1_slope_res_tif_fn,\
+                    p1_slope_rmse=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='17Slp_p1r', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=p1_rmse_tif_fn,\
                                                    radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer=inps.shapefile_clip, interpolation_method=interpolation_method)
                 else:
-                    p1_slope_res=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
-                                                   zfield='17Slp_p1r', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=p1_slope_res_tif_fn,\
+                    p1_slope_rmse=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='17Slp_p1r', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=p1_rmse_tif_fn,\
                                                    radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer='', interpolation_method=interpolation_method)
             else:
-                ds = gdal.Open(p1_slope_res_tif_fn)
-                p1_slope_res = np.array(ds.GetRasterBand(1).ReadAsArray())
-                p1_slope_res[np.where(p1_slope_res == ds.GetRasterBand(1).GetNoDataValue())] = np.nan
+                ds = gdal.Open(p1_rmse_tif_fn)
+                p1_slope_rmse = np.array(ds.GetRasterBand(1).ReadAsArray())
+                p1_slope_rmse[np.where(p1_slope_rmse == ds.GetRasterBand(1).GetNoDataValue())] = np.nan
                 ds = None
 
             #interpolate Lst-sq Plane_slope - p2
             if os.path.exists(p2_slope_tif_fn) == False:
-                print('LST-sq slope, ', end='', flush=True)
+                print('slope p2, ', end='', flush=True)
                 if os.path.exists(inps.shapefile_clip):
                     p2_slope=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
                                                    zfield='18Slp_p2', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=p2_slope_tif_fn,\
@@ -1172,38 +1437,119 @@ if __name__ == '__main__':
                 ds = None
 
             #interpolate Lst-sq Plane_slope - p2 - residuals
-            if os.path.exists(p2_slope_res_tif_fn) == False:
-                print('slope p2-least squared residuals, ', end='', flush=True)
+            if os.path.exists(p2_rsme_tif_fn) == False:
+                print('slope p2r, ', end='', flush=True)
                 if os.path.exists(inps.shapefile_clip):
-                    p2_slope_res=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
-                                                   zfield='17Slp_p1r', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=p2_slope_res_tif_fn,\
+                    p2_slope_rmse=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='19Slp_p2r', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=p2_rsme_tif_fn,\
                                                    radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer=inps.shapefile_clip, interpolation_method=interpolation_method)
                 else:
-                    p2_slope_res=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
-                                                   zfield='17Slp_p1r', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=p2_slope_res_tif_fn,\
+                    p2_slope_rmse=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='19Slp_p2r', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=p2_rsme_tif_fn,\
                                                    radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer='', interpolation_method=interpolation_method)
             else:
-                ds = gdal.Open(p2_slope_res_tif_fn)
-                p2_slope_res = np.array(ds.GetRasterBand(1).ReadAsArray())
-                p2_slope_res[np.where(p2_slope_res == ds.GetRasterBand(1).GetNoDataValue())] = np.nan
+                ds = gdal.Open(p2_rsme_tif_fn)
+                p2_slope_rmse = np.array(ds.GetRasterBand(1).ReadAsArray())
+                p2_slope_rmse[np.where(p2_slope_rmse == ds.GetRasterBand(1).GetNoDataValue())] = np.nan
                 ds = None
             
-            #interpolate LST-Square curvate
-            if os.path.exists(mean_curv_tif_fn) == False:
-                print('LSTSQ curvature, ', end='', flush=True)
+            #interpolate Curvatures
+            if os.path.exists(curv_contour_p2_tif_fn) == False:
+                print('Cc_p2, ', end='', flush=True)
                 if os.path.exists(inps.shapefile_clip):
-                    plane_curv=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
-                                                   zfield='21CurvLSQ', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=mean_curv_tif_fn,\
+                    curv_contour_p2=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='21CC_p2', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_contour_p2_tif_fn,\
                                                    radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer=inps.shapefile_clip, interpolation_method=interpolation_method)
                 else:
-                    plane_curv=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
-                                                   zfield='21CurvLSQ', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=mean_curv_tif_fn,\
+                    curv_contour_p2=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='21CC_p2', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_contour_p2_tif_fn,\
                                                    radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer='', interpolation_method=interpolation_method)
             else:
-                ds = gdal.Open(mean_curv_tif_fn)
-                plane_curv = np.array(ds.GetRasterBand(1).ReadAsArray())
-                plane_curv[np.where(plane_curv == ds.GetRasterBand(1).GetNoDataValue())] = np.nan
+                ds = gdal.Open(curv_contour_p2_tif_fn)
+                curv_contour_p2 = np.array(ds.GetRasterBand(1).ReadAsArray())
+                curv_contour_p2[np.where(curv_contour_p2 == ds.GetRasterBand(1).GetNoDataValue())] = np.nan
                 ds = None
+
+            if os.path.exists(curv_tan_p2_tif_fn) == False:
+                print('Ct_p2, ', end='', flush=True)
+                if os.path.exists(inps.shapefile_clip):
+                    curv_tan_p2=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='22CT_p2', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_tan_p2_tif_fn,\
+                                                   radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer=inps.shapefile_clip, interpolation_method=interpolation_method)
+                else:
+                    curv_tan_p2=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='22CT_p2', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_tan_p2_tif_fn,\
+                                                   radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer='', interpolation_method=interpolation_method)
+            else:
+                ds = gdal.Open(curv_tan_p2_tif_fn)
+                curv_tan_p2 = np.array(ds.GetRasterBand(1).ReadAsArray())
+                curv_tan_p2[np.where(curv_tan_p2 == ds.GetRasterBand(1).GetNoDataValue())] = np.nan
+                ds = None
+
+            if os.path.exists(curv_profile_p2_tif_fn) == False:
+                print('Cp_p2, ', end='', flush=True)
+                if os.path.exists(inps.shapefile_clip):
+                    curv_profile_p2=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='23CP_p2', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_profile_p2_tif_fn,\
+                                                   radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer=inps.shapefile_clip, interpolation_method=interpolation_method)
+                else:
+                    curv_profile_p2=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='23CP_p2', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_profile_p2_tif_fn,\
+                                                   radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer='', interpolation_method=interpolation_method)
+            else:
+                ds = gdal.Open(curv_profile_p2_tif_fn)
+                curv_profile_p2 = np.array(ds.GetRasterBand(1).ReadAsArray())
+                curv_profile_p2[np.where(curv_profile_p2 == ds.GetRasterBand(1).GetNoDataValue())] = np.nan
+                ds = None
+
+            if os.path.exists(curv_contour_p4_tif_fn) == False:
+                print('Cc_p4, ', end='', flush=True)
+                if os.path.exists(inps.shapefile_clip):
+                    curv_contour_p4=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='24CC_p4', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_contour_p4_tif_fn,\
+                                                   radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer=inps.shapefile_clip, interpolation_method=interpolation_method)
+                else:
+                    curv_contour_p4=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='24CC_p4', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_contour_p4_tif_fn,\
+                                                   radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer='', interpolation_method=interpolation_method)
+            else:
+                ds = gdal.Open(curv_contour_p4_tif_fn)
+                curv_contour_p4 = np.array(ds.GetRasterBand(1).ReadAsArray())
+                curv_contour_p4[np.where(curv_contour_p4 == ds.GetRasterBand(1).GetNoDataValue())] = np.nan
+                ds = None
+
+            if os.path.exists(curv_tan_p4_tif_fn) == False:
+                print('Ct_p4, ', end='', flush=True)
+                if os.path.exists(inps.shapefile_clip):
+                    curv_tan_p4=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='25CT_p4', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_tan_p4_tif_fn,\
+                                                   radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer=inps.shapefile_clip, interpolation_method=interpolation_method)
+                else:
+                    curv_tan_p4=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='25CT_p4', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_tan_p4_tif_fn,\
+                                                   radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer='', interpolation_method=interpolation_method)
+            else:
+                ds = gdal.Open(curv_tan_p4_tif_fn)
+                curv_tan_p4 = np.array(ds.GetRasterBand(1).ReadAsArray())
+                curv_tan_p4[np.where(curv_tan_p4 == ds.GetRasterBand(1).GetNoDataValue())] = np.nan
+                ds = None
+
+            if os.path.exists(curv_profile_p4_tif_fn) == False:
+                print('Cp_p4, ', end='', flush=True)
+                if os.path.exists(inps.shapefile_clip):
+                    curv_profile_p4=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='26CP_p4', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_profile_p4_tif_fn,\
+                                                   radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer=inps.shapefile_clip, interpolation_method=interpolation_method)
+                else:
+                    curv_profile_p4=gdal_grid_interpolate(x_coords=x_coords, y_coords=y_coords, ncols=ncols, nrows=nrows,resolution_m=current_rstep_size, layer_in=os.path.basename(inps.shapefile_clip)[:-4], \
+                                                   zfield='26CP_p4', input_vrt=pc_seed_pts_stats_vrt_fn, output_grid=curv_profile_p4_tif_fn,\
+                                                   radius1=radius1, radius2=radius2, grid_datatype='Float32', cliplayer='', interpolation_method=interpolation_method)
+            else:
+                ds = gdal.Open(curv_profile_p4_tif_fn)
+                curv_profile_p4 = np.array(ds.GetRasterBand(1).ReadAsArray())
+                curv_profile_p4[np.where(curv_profile_p4 == ds.GetRasterBand(1).GetNoDataValue())] = np.nan
+                ds = None
+
             print(' done.')
 
         print('\tWriting to HDF file ... ', end='', flush=True)
@@ -1215,8 +1561,10 @@ if __name__ == '__main__':
         pts_seed_stats_fc.attrs['help'] = '''Nr. of seed pts: %d,  pts_seed_stats shape: %d x %d, with col: name 
         0: Seed-X, 1: Seed-Y, 2: Seed-Z, 3: Mean-X, 4: Mean-Y, 5: Mean-Z, 6: Z-min, 7: Z-max, 8: Dz-max, 9: Dz-min,  
         10: Dz-std.dev, 11: Dz-range, 12: Dz-90-10th percentile range, 13: Dz-75-25th percentile range, 14: variance dz, 
-        15: slope-p1, 16: Slope-p1 residuals, 17: slope-p2, 18: Slope-p2 residuals, 19: nr. of lidar points, 
-        20: curvature_lstsq, 21:Std. Z'''\
+        15: slope-p1, 16: P1 RMSE, 17: slope-p2, 18: P2 RMSE, 19: nr. of lidar points, 
+        20: Curvature-Contour-poly2, 21: Curvature-Tangential-poly2, 22: Curvature-Profile-poly2, 
+        23: Curvature-Contour-poly4, 24: Curvature-Tangential-poly4, 25: Curvature-Profile-poly4, 
+        26: P4 RMSE, 27:Std. Z'''\
         %(nr_of_seed_points, pts_seed_stats.shape[0], pts_seed_stats.shape[1])
 
         if inps.create_geotiff == 1:
@@ -1232,12 +1580,22 @@ if __name__ == '__main__':
             p2_slope_fc.attrs['help'] = 'p2 Slope-Least squared'
             p1_slope_fc = hdf_out.create_dataset('p1_slope',data=p1_slope, chunks=True, compression="gzip", compression_opts=7)
             p1_slope_fc.attrs['help'] = 'p1 Slope-Least squared'
-            p2_slope_res_fc = hdf_out.create_dataset('p2_slope_res',data=p2_slope_res, chunks=True, compression="gzip", compression_opts=7)
+            p2_slope_res_fc = hdf_out.create_dataset('p2_slope_rmse',data=p2_slope_rmse, chunks=True, compression="gzip", compression_opts=7)
             p2_slope_res_fc.attrs['help'] = 'p2 Slope-Least squared residuals'
-            p1_slope_res_fc = hdf_out.create_dataset('p1_slope_res',data=p1_slope_res, chunks=True, compression="gzip", compression_opts=7)
+            p1_slope_res_fc = hdf_out.create_dataset('p1_slope_rmse',data=p1_slope_rmse, chunks=True, compression="gzip", compression_opts=7)
             p1_slope_res_fc.attrs['help'] = 'p1 Slope-Least squared residuals'
-            plane_curv_fc = hdf_out.create_dataset('plane_curv',data=plane_curv, chunks=True, compression="gzip", compression_opts=7)
-            plane_curv_fc.attrs['help'] = 'plane_curv'
+            curv_contour_p2_fc = hdf_out.create_dataset('curv_contour_p2',data=curv_contour_p2, chunks=True, compression="gzip", compression_opts=7)
+            curv_contour_p2_fc.attrs['help'] = 'curv_contour_p2'
+            curv_profile_p2_fc = hdf_out.create_dataset('curv_profile_p2',data=curv_profile_p2, chunks=True, compression="gzip", compression_opts=7)
+            curv_profile_p2_fc.attrs['help'] = 'curv_profile_p2'
+            curv_tan_p2_fc = hdf_out.create_dataset('curv_tan_p2',data=curv_tan_p2, chunks=True, compression="gzip", compression_opts=7)
+            curv_tan_p2_fc.attrs['help'] = 'curv_tan_p2'
+            curv_contour_p4_fc = hdf_out.create_dataset('curv_contour_p4',data=curv_contour_p4, chunks=True, compression="gzip", compression_opts=7)
+            curv_contour_p4_fc.attrs['help'] = 'curv_contour_p4'
+            curv_profile_p4_fc = hdf_out.create_dataset('curv_profile_p4',data=curv_profile_p4, chunks=True, compression="gzip", compression_opts=7)
+            curv_profile_p4_fc.attrs['help'] = 'curv_profile_p4'
+            curv_tan_p4_fc = hdf_out.create_dataset('curv_tan_p4',data=curv_tan_p4, chunks=True, compression="gzip", compression_opts=7)
+            curv_tan_p4_fc.attrs['help'] = 'curv_tan_p4'
             z_std_fc = hdf_out.create_dataset('z_std',data=z_std, chunks=True, compression="gzip", compression_opts=7)
             z_std_fc.attrs['help'] = 'z_std'
             z_mean_fc = hdf_out.create_dataset('z_mean',data=z_mean, chunks=True, compression="gzip", compression_opts=7)
@@ -1252,14 +1610,20 @@ if __name__ == '__main__':
             dz_iqr = None
             p2_slope = None
             p1_slope = None
-            p2_slope_res = None
-            p1_slope_res = None
-            plane_curv = None
+            p2_slope_rmse = None
+            p1_slope_rmse = None
+            curv_contour_p2 = None
+            curv_profile_p2 = None
+            curv_tan_p2 = None
+            curv_contour_p4 = None
+            curv_profile_p4 = None
+            curv_tan_p4 = None
             z_std = None
             z_mean = None
         hdf_out.close()
         print('done.')
     
+        rmse_threshold = 0.2
         ### Write to LAS/LAZ file (writing to LAZ file not yet supported by laspy)
         output_las_fn = '_seed_pts_%0.2fm_radius_xyzmean.las'%(current_rstep_size)
         output_las_fn = os.path.join(las_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + output_las_fn)
@@ -1351,10 +1715,24 @@ if __name__ == '__main__':
             pts2write = pts_seed_stats[:, 3:6] #[:, [3, 4, 13]]
             mask = np.all(np.isnan(pts2write) | np.equal(pts2write, 0), axis=1)                
             pts2write = pts2write[~mask]
-            #normalize input and generate colors using colormap
             v = pts_seed_stats[:,17]
+            rmse = pts_seed_stats[:,18]
             v = v[~mask]
+            rmse = rmse[~mask]
             mask = None
+            mask = np.isnan(v) | np.equal(v, 0)              
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+            
+            #filter by residual
+            mask = rmse > rmse_threshold
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+                        
             #stretch to 10-90th percentile
             v_1090p = np.nanpercentile(v, [10, 90])
             v_rescale = exposure.rescale_intensity(v, in_range=(v_1090p[0], v_1090p[1]))
@@ -1427,23 +1805,37 @@ if __name__ == '__main__':
             outFile.Blue = rgb[:,2]    
             outFile.close()    
             print('done.')
-    
-        output_las_fn = '_seed_pts_%0.2fm_radius_mean_curv.las'%(current_rstep_size)
+
+        output_las_fn = '_seed_pts_%0.2fm_radius_curv_contour_p2.las'%(current_rstep_size)
         output_las_fn = os.path.join(las_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + output_las_fn)
         if inps.create_las == 1 and os.path.exists(output_las_fn) == False:
-            print('\tWriting mean curvature of seed points to LAS file: %s... '%os.path.basename(output_las_fn), end='', flush=True)    
+            print('\tWriting curvature-contour p2 of seed points to LAS file: %s... '%os.path.basename(output_las_fn), end='', flush=True)    
             pts2write = pts_seed_stats[:, 3:6] #[:, [3, 4, 13]]
+            rmse = pts_seed_stats[:,18]
+            v = pts_seed_stats[:,20]
             mask = np.all(np.isnan(pts2write) | np.equal(pts2write, 0), axis=1)                
             pts2write = pts2write[~mask]
-            #normalize input and generate colors using colormap
-            v = pts_seed_stats[:,20]
             v = v[~mask]
+            rmse = rmse[~mask]
             mask = None
+            mask = np.isnan(v) | np.equal(v, 0)              
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            #filter by residual
+            mask = rmse > rmse_threshold
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
             #stretch to 10-90th percentile
             v_1090p = np.nanpercentile(v, [10, 90])
-            bounds = np.round(np.mean(np.abs(v_1090p)), decimals=2)
+            bounds = np.round(np.median(np.abs(v_1090p)), decimals=2)
             v_rescale = exposure.rescale_intensity(v, in_range=(-bounds, bounds))
-            colormap_PuOr = mpl.cm.PiYG
+            colormap_PuOr = mpl.cm.coolwarm
             rgb = colormap_PuOr(v_rescale)
             #remove last column - alpha value
             rgb = (rgb[:, :3] * (np.power(2,16)-1)).astype('uint16')
@@ -1471,6 +1863,458 @@ if __name__ == '__main__':
             outFile.close()    
             print('done.')
 
+        output_las_fn = '_seed_pts_%0.2fm_radius_curv_tangential_p2.las'%(current_rstep_size)
+        output_las_fn = os.path.join(las_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + output_las_fn)
+        if inps.create_las == 1 and os.path.exists(output_las_fn) == False:
+            print('\tWriting curvature-tangential p2 of seed points to LAS file: %s... '%os.path.basename(output_las_fn), end='', flush=True)    
+            pts2write = pts_seed_stats[:, 3:6] #[:, [3, 4, 13]]
+            rmse = pts_seed_stats[:,18]
+            v = pts_seed_stats[:,21]
+            mask = np.all(np.isnan(pts2write) | np.equal(pts2write, 0), axis=1)                
+            pts2write = pts2write[~mask]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+            mask = np.isnan(v) | np.equal(v, 0)              
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            #filter by residual
+            mask = rmse > rmse_threshold
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            #stretch to 10-90th percentile
+            v_1090p = np.nanpercentile(v, [10, 90])
+            bounds = np.round(np.median(np.abs(v_1090p)), decimals=2)
+            v_rescale = exposure.rescale_intensity(v, in_range=(-bounds, bounds))
+            colormap_PuOr = mpl.cm.coolwarm
+            rgb = colormap_PuOr(v_rescale)
+            #remove last column - alpha value
+            rgb = (rgb[:, :3] * (np.power(2,16)-1)).astype('uint16')
+        
+            outFile = File(output_las_fn, mode='w', header=inFile.header)
+            new_header = copy.copy(outFile.header)
+            #setting some variables
+            new_header.created_year = datetime.datetime.now().year
+            new_header.created_day = datetime.datetime.now().timetuple().tm_yday
+            new_header.x_max = pts2write[:,0].max()
+            new_header.x_min = pts2write[:,0].min()
+            new_header.y_max = pts2write[:,1].max()
+            new_header.y_min = pts2write[:,1].min()
+            new_header.z_max = pts2write[:,2].max()
+            new_header.z_min = pts2write[:,2].min()
+            new_header.point_records_count = pts2write.shape[0]
+            new_header.point_return_count = 0
+            outFile.header.count = v.shape[0]
+            outFile.X = pts2write[:,0]
+            outFile.Y = pts2write[:,1]
+            outFile.Z = pts2write[:,2]
+            outFile.Red = rgb[:,0]
+            outFile.Green = rgb[:,1]
+            outFile.Blue = rgb[:,2]    
+            outFile.close()    
+            print('done.')
+
+        output_las_fn = '_seed_pts_%0.2fm_radius_curv_profile_p2.las'%(current_rstep_size)
+        output_las_fn = os.path.join(las_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + output_las_fn)
+        if inps.create_las == 1 and os.path.exists(output_las_fn) == False:
+            print('\tWriting curvature-profile p2 of seed points to LAS file: %s... '%os.path.basename(output_las_fn), end='', flush=True)    
+            pts2write = pts_seed_stats[:, 3:6] #[:, [3, 4, 13]]
+            rmse = pts_seed_stats[:,18]
+            v = pts_seed_stats[:,22]
+            mask = np.all(np.isnan(pts2write) | np.equal(pts2write, 0), axis=1)                
+            pts2write = pts2write[~mask]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+            mask = np.isnan(v) | np.equal(v, 0)              
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            #filter by residual
+            mask = rmse > rmse_threshold
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            #stretch to 10-90th percentile
+            v_1090p = np.nanpercentile(v, [10, 90])
+            bounds = np.round(np.median(np.abs(v_1090p)), decimals=2)
+            v_rescale = exposure.rescale_intensity(v, in_range=(-bounds, bounds))
+            colormap_PuOr = mpl.cm.coolwarm
+            rgb = colormap_PuOr(v_rescale)
+            #remove last column - alpha value
+            rgb = (rgb[:, :3] * (np.power(2,16)-1)).astype('uint16')
+        
+            outFile = File(output_las_fn, mode='w', header=inFile.header)
+            new_header = copy.copy(outFile.header)
+            #setting some variables
+            new_header.created_year = datetime.datetime.now().year
+            new_header.created_day = datetime.datetime.now().timetuple().tm_yday
+            new_header.x_max = pts2write[:,0].max()
+            new_header.x_min = pts2write[:,0].min()
+            new_header.y_max = pts2write[:,1].max()
+            new_header.y_min = pts2write[:,1].min()
+            new_header.z_max = pts2write[:,2].max()
+            new_header.z_min = pts2write[:,2].min()
+            new_header.point_records_count = pts2write.shape[0]
+            new_header.point_return_count = 0
+            outFile.header.count = v.shape[0]
+            outFile.X = pts2write[:,0]
+            outFile.Y = pts2write[:,1]
+            outFile.Z = pts2write[:,2]
+            outFile.Red = rgb[:,0]
+            outFile.Green = rgb[:,1]
+            outFile.Blue = rgb[:,2]    
+            outFile.close()    
+            print('done.')
+
+        output_las_fn = '_seed_pts_%0.2fm_radius_curv_contour_p4.las'%(current_rstep_size)
+        output_las_fn = os.path.join(las_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + output_las_fn)
+        if inps.create_las == 1 and os.path.exists(output_las_fn) == False:
+            print('\tWriting curvature-contour p4 of seed points to LAS file: %s... '%os.path.basename(output_las_fn), end='', flush=True)    
+            pts2write = pts_seed_stats[:, 3:6] #[:, [3, 4, 13]]
+            rmse = pts_seed_stats[:,26]
+            v = pts_seed_stats[:,23]
+            mask = np.all(np.isnan(pts2write) | np.equal(pts2write, 0), axis=1)                
+            pts2write = pts2write[~mask]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+            mask = np.isnan(v) | np.equal(v, 0)              
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            #filter by residual
+            mask = rmse > rmse_threshold
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+            if len(v) > 0:
+                #stretch to 10-90th percentile
+                v_1090p = np.nanpercentile(v, [10, 90])
+                bounds = np.round(np.mean(np.abs(v_1090p)), decimals=2)
+                v_rescale = exposure.rescale_intensity(v, in_range=(-bounds, bounds))
+                colormap_PuOr = mpl.cm.coolwarm
+                rgb = colormap_PuOr(v_rescale)
+                #remove last column - alpha value
+                rgb = (rgb[:, :3] * (np.power(2,16)-1)).astype('uint16')
+            
+                outFile = File(output_las_fn, mode='w', header=inFile.header)
+                new_header = copy.copy(outFile.header)
+                #setting some variables
+                new_header.created_year = datetime.datetime.now().year
+                new_header.created_day = datetime.datetime.now().timetuple().tm_yday
+                new_header.x_max = pts2write[:,0].max()
+                new_header.x_min = pts2write[:,0].min()
+                new_header.y_max = pts2write[:,1].max()
+                new_header.y_min = pts2write[:,1].min()
+                new_header.z_max = pts2write[:,2].max()
+                new_header.z_min = pts2write[:,2].min()
+                new_header.point_records_count = pts2write.shape[0]
+                new_header.point_return_count = 0
+                outFile.header.count = v.shape[0]
+                outFile.X = pts2write[:,0]
+                outFile.Y = pts2write[:,1]
+                outFile.Z = pts2write[:,2]
+                outFile.Red = rgb[:,0]
+                outFile.Green = rgb[:,1]
+                outFile.Blue = rgb[:,2]    
+                outFile.close()    
+                print('done.')
+            else:
+                print('no data.')
+
+        output_las_fn = '_seed_pts_%0.2fm_radius_curv_tangential_p4.las'%(current_rstep_size)
+        output_las_fn = os.path.join(las_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + output_las_fn)
+        if inps.create_las == 1 and os.path.exists(output_las_fn) == False:
+            print('\tWriting curvature-tangential p4 of seed points to LAS file: %s... '%os.path.basename(output_las_fn), end='', flush=True)    
+            pts2write = pts_seed_stats[:, 3:6] #[:, [3, 4, 13]]
+            rmse = pts_seed_stats[:,26]
+            v = pts_seed_stats[:,24]
+            mask = np.all(np.isnan(pts2write) | np.equal(pts2write, 0), axis=1)                
+            pts2write = pts2write[~mask]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+            mask = np.isnan(v) | np.equal(v, 0)              
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            #filter by residual
+            mask = rmse > rmse_threshold
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            if len(v) > 0:
+                #stretch to 10-90th percentile
+                v_1090p = np.nanpercentile(v, [10, 90])
+                bounds = np.round(np.mean(np.abs(v_1090p)), decimals=2)
+                v_rescale = exposure.rescale_intensity(v, in_range=(-bounds, bounds))
+                colormap_PuOr = mpl.cm.coolwarm
+                rgb = colormap_PuOr(v_rescale)
+                #remove last column - alpha value
+                rgb = (rgb[:, :3] * (np.power(2,16)-1)).astype('uint16')
+            
+                outFile = File(output_las_fn, mode='w', header=inFile.header)
+                new_header = copy.copy(outFile.header)
+                #setting some variables
+                new_header.created_year = datetime.datetime.now().year
+                new_header.created_day = datetime.datetime.now().timetuple().tm_yday
+                new_header.x_max = pts2write[:,0].max()
+                new_header.x_min = pts2write[:,0].min()
+                new_header.y_max = pts2write[:,1].max()
+                new_header.y_min = pts2write[:,1].min()
+                new_header.z_max = pts2write[:,2].max()
+                new_header.z_min = pts2write[:,2].min()
+                new_header.point_records_count = pts2write.shape[0]
+                new_header.point_return_count = 0
+                outFile.header.count = v.shape[0]
+                outFile.X = pts2write[:,0]
+                outFile.Y = pts2write[:,1]
+                outFile.Z = pts2write[:,2]
+                outFile.Red = rgb[:,0]
+                outFile.Green = rgb[:,1]
+                outFile.Blue = rgb[:,2]    
+                outFile.close()    
+                print('done.')
+            else:
+                print('no data.')
+
+        output_las_fn = '_seed_pts_%0.2fm_radius_curv_profile_p4.las'%(current_rstep_size)
+        output_las_fn = os.path.join(las_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + output_las_fn)
+        if inps.create_las == 1 and os.path.exists(output_las_fn) == False:
+            print('\tWriting curvature-profile p4 of seed points to LAS file: %s... '%os.path.basename(output_las_fn), end='', flush=True)    
+            pts2write = pts_seed_stats[:, 3:6] #[:, [3, 4, 13]]
+            rmse = pts_seed_stats[:,26]
+            v = pts_seed_stats[:,24]
+            mask = np.all(np.isnan(pts2write) | np.equal(pts2write, 0), axis=1)                
+            pts2write = pts2write[~mask]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+            mask = np.isnan(v) | np.equal(v, 0)              
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            #filter by residual
+            mask = rmse > rmse_threshold
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            if len(v) > 0:
+                #stretch to 10-90th percentile
+                v_1090p = np.nanpercentile(v, [10, 90])
+                bounds = np.round(np.mean(np.abs(v_1090p)), decimals=2)
+                v_rescale = exposure.rescale_intensity(v, in_range=(-bounds, bounds))
+                colormap_PuOr = mpl.cm.coolwarm
+                rgb = colormap_PuOr(v_rescale)
+                #remove last column - alpha value
+                rgb = (rgb[:, :3] * (np.power(2,16)-1)).astype('uint16')
+            
+                outFile = File(output_las_fn, mode='w', header=inFile.header)
+                new_header = copy.copy(outFile.header)
+                #setting some variables
+                new_header.created_year = datetime.datetime.now().year
+                new_header.created_day = datetime.datetime.now().timetuple().tm_yday
+                new_header.x_max = pts2write[:,0].max()
+                new_header.x_min = pts2write[:,0].min()
+                new_header.y_max = pts2write[:,1].max()
+                new_header.y_min = pts2write[:,1].min()
+                new_header.z_max = pts2write[:,2].max()
+                new_header.z_min = pts2write[:,2].min()
+                new_header.point_records_count = pts2write.shape[0]
+                new_header.point_return_count = 0
+                outFile.header.count = v.shape[0]
+                outFile.X = pts2write[:,0]
+                outFile.Y = pts2write[:,1]
+                outFile.Z = pts2write[:,2]
+                outFile.Red = rgb[:,0]
+                outFile.Green = rgb[:,1]
+                outFile.Blue = rgb[:,2]
+                outFile.close()
+                print('done.')
+            else:
+                print('no data.')
+
+        output_las_fn = '_seed_pts_%0.2fm_d_p1_rmse.las'%(current_rstep_size)
+        output_las_fn = os.path.join(las_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + output_las_fn)
+        if inps.create_las == 1 and os.path.exists(output_las_fn) == False:
+            print('\tWriting p1 rmse of seed points to LAS file: %s... '%os.path.basename(output_las_fn), end='', flush=True)    
+            pts2write = pts_seed_stats[:, 3:6] #[:, [3, 4, 13]]
+            rmse = pts_seed_stats[:,16]
+            v = pts_seed_stats[:,16]
+            mask = np.all(np.isnan(pts2write) | np.equal(pts2write, 0), axis=1)                
+            pts2write = pts2write[~mask]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+            mask = np.isnan(v) | np.equal(v, 0)              
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            if len(v) > 0:
+                #stretch to 10-90th percentile
+                v_1090p = np.nanpercentile(v, [10, 90])
+                bounds = np.round(np.mean(np.abs(v_1090p)), decimals=2)
+                v_rescale = exposure.rescale_intensity(v, in_range=(0, bounds))
+                colormap_PuOr = mpl.cm.PRGn
+                rgb = colormap_PuOr(v_rescale)
+                #remove last column - alpha value
+                rgb = (rgb[:, :3] * (np.power(2,16)-1)).astype('uint16')
+            
+                outFile = File(output_las_fn, mode='w', header=inFile.header)
+                new_header = copy.copy(outFile.header)
+                #setting some variables
+                new_header.created_year = datetime.datetime.now().year
+                new_header.created_day = datetime.datetime.now().timetuple().tm_yday
+                new_header.x_max = pts2write[:,0].max()
+                new_header.x_min = pts2write[:,0].min()
+                new_header.y_max = pts2write[:,1].max()
+                new_header.y_min = pts2write[:,1].min()
+                new_header.z_max = pts2write[:,2].max()
+                new_header.z_min = pts2write[:,2].min()
+                new_header.point_records_count = pts2write.shape[0]
+                new_header.point_return_count = 0
+                outFile.header.count = v.shape[0]
+                outFile.X = pts2write[:,0]
+                outFile.Y = pts2write[:,1]
+                outFile.Z = pts2write[:,2]
+                outFile.Red = rgb[:,0]
+                outFile.Green = rgb[:,1]
+                outFile.Blue = rgb[:,2]
+                outFile.close()
+                print('done.')
+            else:
+                print('no data.')
+
+        output_las_fn = '_seed_pts_%0.2fm_d_p2_rmse.las'%(current_rstep_size)
+        output_las_fn = os.path.join(las_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + output_las_fn)
+        if inps.create_las == 1 and os.path.exists(output_las_fn) == False:
+            print('\tWriting p2 rmse of seed points to LAS file: %s... '%os.path.basename(output_las_fn), end='', flush=True)    
+            pts2write = pts_seed_stats[:, 3:6] #[:, [3, 4, 13]]
+            rmse = pts_seed_stats[:,18]
+            v = pts_seed_stats[:,18]
+            mask = np.all(np.isnan(pts2write) | np.equal(pts2write, 0), axis=1)                
+            pts2write = pts2write[~mask]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+            mask = np.isnan(v) | np.equal(v, 0)              
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            if len(v) > 0:
+                #stretch to 10-90th percentile
+                v_1090p = np.nanpercentile(v, [10, 90])
+                bounds = np.round(np.mean(np.abs(v_1090p)), decimals=2)
+                v_rescale = exposure.rescale_intensity(v, in_range=(0, bounds))
+                colormap_PuOr = mpl.cm.PRGn
+                rgb = colormap_PuOr(v_rescale)
+                #remove last column - alpha value
+                rgb = (rgb[:, :3] * (np.power(2,16)-1)).astype('uint16')
+            
+                outFile = File(output_las_fn, mode='w', header=inFile.header)
+                new_header = copy.copy(outFile.header)
+                #setting some variables
+                new_header.created_year = datetime.datetime.now().year
+                new_header.created_day = datetime.datetime.now().timetuple().tm_yday
+                new_header.x_max = pts2write[:,0].max()
+                new_header.x_min = pts2write[:,0].min()
+                new_header.y_max = pts2write[:,1].max()
+                new_header.y_min = pts2write[:,1].min()
+                new_header.z_max = pts2write[:,2].max()
+                new_header.z_min = pts2write[:,2].min()
+                new_header.point_records_count = pts2write.shape[0]
+                new_header.point_return_count = 0
+                outFile.header.count = v.shape[0]
+                outFile.X = pts2write[:,0]
+                outFile.Y = pts2write[:,1]
+                outFile.Z = pts2write[:,2]
+                outFile.Red = rgb[:,0]
+                outFile.Green = rgb[:,1]
+                outFile.Blue = rgb[:,2]
+                outFile.close()
+                print('done.')
+            else:
+                print('no data.')
+
+        output_las_fn = '_seed_pts_%0.2fm_d_p4_rmse.las'%(current_rstep_size)
+        output_las_fn = os.path.join(las_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + output_las_fn)
+        if inps.create_las == 1 and os.path.exists(output_las_fn) == False:
+            print('\tWriting p4 rmse of seed points to LAS file: %s... '%os.path.basename(output_las_fn), end='', flush=True)    
+            pts2write = pts_seed_stats[:, 3:6] #[:, [3, 4, 13]]
+            rmse = pts_seed_stats[:,26]
+            v = pts_seed_stats[:,26]
+            mask = np.all(np.isnan(pts2write) | np.equal(pts2write, 0), axis=1)                
+            pts2write = pts2write[~mask]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+            mask = np.isnan(v) | np.equal(v, 0)              
+            pts2write = pts2write[~mask,:]
+            v = v[~mask]
+            rmse = rmse[~mask]
+            mask = None
+
+            if len(v) > 0:
+                #stretch to 10-90th percentile
+                v_1090p = np.nanpercentile(v, [10, 90])
+                bounds = np.round(np.mean(np.abs(v_1090p)), decimals=2)
+                v_rescale = exposure.rescale_intensity(v, in_range=(0, bounds))
+                colormap_PuOr = mpl.cm.PRGn
+                rgb = colormap_PuOr(v_rescale)
+                #remove last column - alpha value
+                rgb = (rgb[:, :3] * (np.power(2,16)-1)).astype('uint16')
+            
+                outFile = File(output_las_fn, mode='w', header=inFile.header)
+                new_header = copy.copy(outFile.header)
+                #setting some variables
+                new_header.created_year = datetime.datetime.now().year
+                new_header.created_day = datetime.datetime.now().timetuple().tm_yday
+                new_header.x_max = pts2write[:,0].max()
+                new_header.x_min = pts2write[:,0].min()
+                new_header.y_max = pts2write[:,1].max()
+                new_header.y_min = pts2write[:,1].min()
+                new_header.z_max = pts2write[:,2].max()
+                new_header.z_min = pts2write[:,2].min()
+                new_header.point_records_count = pts2write.shape[0]
+                new_header.point_return_count = 0
+                outFile.header.count = v.shape[0]
+                outFile.X = pts2write[:,0]
+                outFile.Y = pts2write[:,1]
+                outFile.Z = pts2write[:,2]
+                outFile.Red = rgb[:,0]
+                outFile.Green = rgb[:,1]
+                outFile.Blue = rgb[:,2]
+                outFile.close()
+                print('done.')
+            else:
+                print('no data.')
+
         if inps.create_gmt_maps != '':
             if os.path.exists(inps.create_gmt_maps) == True:
                 os.chdir(os.path.join(inps.basedir, 'maps'))
@@ -1482,20 +2326,24 @@ if __name__ == '__main__':
                 DEM_INTERP_GRD = inps.dem_fname
                 SLP_LSTSQ_P1_GRD = p2_slope_tif_fn
                 SLP_LSTSQ_P2_GRD = p1_slope_tif_fn
-                SLP_LSTSQ_P1_RES_GRD = p1_slope_res_tif_fn
-                CURV_GRD = mean_curv_tif_fn
+                SLP_LSTSQ_P1_RMSE_GRD = p1_rmse_tif_fn
+                SLP_LSTSQ_P2_RMSE_GRD = p2_rsme_tif_fn
+                CONTOUR_CURV_P2_GRD = curv_contour_p2_tif_fn
+                TANGENTIAL_CURV_P2_GRD = curv_tan_p2_tif_fn
+                PROFILE_CURV_P2_GRD = curv_profile_p2_tif_fn
                 NRLIDARPTS_GRD = nrlidar_tif_fn
                 DZ_STDDEV_GRD = dz_std_tif_fn
                 DZ_IQR_GRD = dz_iqr_tif_fn
-                DZ_R9010_GRD = dz_range9010_tif_fn
+                DZ_R9010_GRD = dz_range9010_tif_fn                
                 z_delta_tif_fn = os.path.join(geotif_dir, str(os.path.basename(inps.inlas).split('.')[:-1][0]) + '_%0.2fm_z_mean_delta.tif'%(current_rstep_size))
                 DELTA_DEM = z_delta_tif_fn
                 DEM_RESOLUTION=str(current_rstep_size)
                 #print('\tCreating GMT maps with %s... '%inps.create_gmt_maps, end='', flush=True)
                 cmd = ['bash', inps.create_gmt_maps, TITLE, POSTSCRIPT_BASENAME, SHAPEFILE, DEM_MN_GRD, \
-                       DEM_INTERP_GRD, SLP_LSTSQ_P1_GRD, SLP_LSTSQ_P2_GRD, SLP_LSTSQ_P1_RES_GRD, CURV_GRD, \
+                       DEM_INTERP_GRD, SLP_LSTSQ_P1_GRD, SLP_LSTSQ_P2_GRD, SLP_LSTSQ_P1_RMSE_GRD, SLP_LSTSQ_P2_RMSE_GRD, \
+                       CONTOUR_CURV_P2_GRD, TANGENTIAL_CURV_P2_GRD, PROFILE_CURV_P2_GRD, \
                        NRLIDARPTS_GRD, DZ_STDDEV_GRD, DZ_IQR_GRD, DZ_R9010_GRD, DELTA_DEM, DEM_RESOLUTION]
-                print(' '.join(cmd))
+                #print(' '.join(cmd))
                 logfile_fname = os.path.join(inps.basedir, 'log') + '/gmt_maps_' + str(current_rstep_size) + '_' + datetime.datetime.now().strftime('%Y%b%d_%H%M%S') + '.txt'
                 logfile_error_fname = os.path.join(inps.basedir, 'log') + '/gmt_maps_' + datetime.datetime.now().strftime('%Y%b%d_%H%M%S') + '_err.txt'
                 with open(logfile_fname, 'w') as out, open(logfile_error_fname, 'w') as err:

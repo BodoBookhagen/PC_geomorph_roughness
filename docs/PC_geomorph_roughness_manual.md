@@ -20,7 +20,7 @@ This document-in-manual-style roughly outlines the steps necessary to take an un
 
 
 **The algorithm and an application for this code is described in:
-Bingham, N., Bookhagen, B., Johnson, K., and Chadwick, O. (in review): Use of lidar point cloud data to assess human-induced erosion and loss of vegetation cover on contrasting lithologies**
+*Bingham, N., Bookhagen, B., Johnson, K., and Chadwick, O.* (in review): Use of lidar point cloud data to assess human-induced erosion and loss of vegetation cover on contrasting lithologies**
 
 **When using the code, please cite this paper!**
 
@@ -86,7 +86,7 @@ pip install laspy
 ```
 If you have issues with pip, see: [here](https://stackoverflow.com/questions/47955397/pip3-error-namespacepath-object-has-no-attribute-sor).
 
-This code uses [pykdtree](https://github.com/storpipfugl/pykdtree). There are other KDTree implementations, for example [scipy.spatial.cKDTree](https://docs.scipy.org/doc/scipy-0.19.1/reference/generated/scipy.spatial.cKDTree.html). But pykdtree is faster (but doesn't allow you to save the results such as cKDTree). Because we aim at very large point clouds, the pyKDTree algorithm is significantly faster for generating and querying the KDtree and will increase processing speed (we have run tests with 1e6 to 1e9 points).
+This code uses [pykdtree](https://github.com/storpipfugl/pykdtree). There are other KDTree implementations, for example [scipy.spatial.cKDTree](https://docs.scipy.org/doc/scipy-0.19.1/reference/generated/scipy.spatial.cKDTree.html). But pykdtree is faster (but doesn't allow you to save the results such as cKDTree). Because we aim at processing very large point clouds, the pyKDTree algorithm is significantly faster for generating and querying the KDtree and will increase processing speed (we have run tests with 1e6 to 1e9 points).
 
 
 ## Installation of *PC_geomorph_roughness*
@@ -151,25 +151,25 @@ echo "export LD_LIBRARY_PATH=~/lib:$LD_LIBRARY_PATH" >> ~/.bashrc
 ```
 
 # Point Cloud (PC) Classification
-PC classification is not part of the manuscript and algorithm described. Here, we just show two approaches how to ground-classify a PC. You may know of others (and there are certainly many different ways to ground-classify PCs).
+**PC classification is not part of the manuscript and algorithm described. Here, we show two approaches how to ground-classify a PC. You may know of others (and there are certainly many different ways to ground-classify PCs).**
 
 *We describe ground-classification using the commercial [LAStools](https://rapidlasso.com/lastools/) package and an open-source approach with [PDAL](https://pdal.io/).*
 
 We focus on our analysis on three subcatchments in the Pozo catchments (example_01, example_01m example_03).
 An oblique view of the Pozo catchment illustrates the steep terrain and diverse landcover (Figure \ref{Fig:PC_Pozo_color_intensity}).
 
-![Oblique view of the Pozo catchment in the southwestern part of the Santa Cruz Island. For this area, we show the analysis of three subcatchments in example_01, example_01, and example_03. The left image illustrate RGB colors taken from a recent airphoto and draped over the point clouds, the right view shows the intensity values of the NIR lidar. There are n=69,301,579 points (all points, no classification).\label{Fig:PC_Pozo_color_intensity}](figs/PC_Pozo_color_intensity.png) 
+![Oblique view of the Pozo catchment in the southwestern part of the Santa Cruz Island. For this area, we show the analysis of three subcatchments in [example_01](https://github.com/BodoBookhagen/PC_geomorph_roughness/tree/master/example_01), [example_02](https://github.com/BodoBookhagen/PC_geomorph_roughness/tree/master/example_02), and [example_03](https://github.com/BodoBookhagen/PC_geomorph_roughness/tree/master/example_03). The left image illustrate RGB colors taken from a recent airphoto and draped over the point clouds, the right view shows the intensity values of the NIR lidar. There are n=69,301,579 points (all points, no classification).\label{Fig:PC_Pozo_color_intensity}](figs/PC_Pozo_color_intensity.png) 
 
 ## Classification with LAStools
 *NOTE: [LAStools](https://rapidlasso.com/lastools/) is a commercial code and requires a license to be fully functional. An alternative to LAStools is described using PDAL's implementation of SMRF.*
 
-First, we clip the catchment with [lasclip](https://rapidlasso.com/lastools/lasclip/) from a larger LAZ file containing ~69 Mio. points for the southwestern part of Santa Cruz Island (Figure \ref{Fig:PC_Pozo_color_intensity}). These data are stored in file *Pozo_USGS_UTM11_NAD83_all_color_nocl.laz* (not provided with these example, because it is too large for storage on github). But the entire dataset is freely available and can be obtained at [OpenTopography](https://opentopography.org/). 
+First, we clip the catchment with [lasclip](https://rapidlasso.com/lastools/lasclip/) from a larger LAZ file containing ~69 Mio. points for the southwestern part of Santa Cruz Island (Figure \ref{Fig:PC_Pozo_color_intensity}). These data are stored in file *Pozo_USGS_UTM11_NAD83_ all_color_nocl.laz* (not provided with these example, because it is too large for storage on github). But the entire dataset is freely available and can be obtained at [OpenTopography](https://opentopography.org/). 
 
 
 ### Clipping a PC
-We use a shapefile in the same projection as the LAZ pointcloud to extract the subsetted, unclassified pointcloud. We have buffered this shapefile by 50m to make sure to include points from outside the drainage divide (derived from a 1m DEM) to avoid artifacts. Here we demonstrate this for catchment example_01 (coined catchment 16). 
+We use a shapefile in the same projection as the LAZ pointcloud to extract the subsetted, unclassified pointcloud. We have buffered this shapefile by 50m to make sure to include points from outside the drainage divide (derived from a 1m DEM) to avoid artifacts. Here we demonstrate this for catchment [example_01](https://github.com/BodoBookhagen/PC_geomorph_roughness/tree/master/example_01) (also called catchment 16). 
 
-*NOTE: Because we run these examples on an Ubuntu system, we use wine. If you are on a Mac OSX, the commands will be similar. On a Windows system, you can just use the .exe files (e.g., lasinfo.exe - if you have set the path variable correctly as shown above).*
+*NOTE: Because we run these examples on an Ubuntu system, we use wine. If you are on a Mac OSX, the commands will be similar. On a Windows system, you can just use the .exe files (e.g., lasinfo.exe - if you have set the path variable correctly as shown above). *
 
 ```bash
 cd example_01
@@ -277,16 +277,16 @@ The resulting grids (Figures \ref{Fig:Cat16_lasground_comparison} and \ref{Fig:C
 
 *NOTE: Before we can compare the grid, we will need to ensure that they are aligned to each other. The safest (and easiest) way of doing that is to make certain that the UTM coordinates of the grid (or GeoTIFF) is aligned with integer UTM coordinates. Second, we also want to cut the regions outside the catchment to avoid including border artifacts.*
 
-These steps have been included in the GMT bash shell file (example01/example01_create_DEM_comparison_ground_classification_gmt.sh). This can be achieved with:
+These steps have been included in the [GMT bash shell file](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_01/example01_create_DEM_comparison_ground_classification_gmt.sh). This can be achieved with:
 ```bash
 DEM1=dtm_interp/Pozo_USGS_UTM11_NAD83_cat16_clg_cl2_1m.tif
 SHAPEFILE=Pozo_DTM_noveg_UTM11_NAD83_cat16.shp
 gdalwarp $DEM1 foo.tif -tap -tr 1 1 -r bilinear -cutline $SHAPEFILE -crop_to_cutline -co COMPRESS=DEFLATE -co ZLEVEL=7 -co predictor=3
 ```
 
-![Map view of the adjusted lasground (top), normal lasground (middle), and lasground_new (bottom) outputs. Small differences are visible. This map comparison has been created with GMT (see script example01_create_DEM_comparison_ground_classification_gmt.sh in directory example_01).\label{Fig:Cat16_lasground_comparison}](figs/Cat16_lasground_comparison.png){height=90%}
+![Map view of the adjusted lasground (top), normal lasground (middle), and lasground_new (bottom) outputs. Small differences are visible. This map comparison has been created with GMT (see [GMT script](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_01/example01_create_DEM_comparison_ground_classification_gmt.sh)).\label{Fig:Cat16_lasground_comparison}](figs/Cat16_lasground_comparison.png){height=90%}
 
-![Map view of the difference (Delta H) between adjusted lasground and lasground-normal (middle), and lasground_new (bottom) outputs. Small differences are visible, especially where vegetation cover is high. This map comparison has been created with GMT (see script example01_create_DEM_comparison_ground_classification_gmt.sh in directory example_01).\label{Fig:Cat16_lasground_diff}](figs/Cat16_lasground_diff.png){height=90%}
+![Map view of the difference (Delta H) between adjusted lasground and lasground-normal (middle), and lasground_new (bottom) outputs. Small differences are visible, especially where vegetation cover is high. This map comparison has been created with GMT (see [GMT script](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_01/example01_create_DEM_comparison_ground_classification_gmt.sh)).\label{Fig:Cat16_lasground_diff}](figs/Cat16_lasground_diff.png){height=90%}
 
 
 ### Comparison of ground-classified PCs
@@ -435,7 +435,7 @@ pdal translate \
 
 However, even with these aggressive filtering options, the PMF doesn't perform well in the very steep and rugged terrain of Santa Cruz Island.
 
-![Oblique view of the lower part of subcatchment 16 in the Pozo catchment. Left view shows the lidar intensity image, middle is ground classification using PDAL's implementation of SMRF, right image uses PDAL's implementation of PMF (brown-yellow colors indicate ground and white points are unclassified). PMF will require setting additional parameters (see the filter webpage), SMRF generates reasonable results with standard options.\label{Fig:PC_cat16_intensity_smrf_pmf_classification}](figs/PC_cat16_intensity_smrf_pmf_classification.png)
+![Oblique view of the lower part of subcatchment 16 in the Pozo catchment. Left view shows the lidar intensity image, middle is ground classification using PDAL's implementation of SMRF, right image uses PDAL's implementation of PMF (brown-yellow colors indicate ground and white points are unclassified). PMF will require setting additional parameters (see [PDAL filter webpage](https://pdal.io/stages/filters.pmf.html)), SMRF generates reasonable results with standard options.\label{Fig:PC_cat16_intensity_smrf_pmf_classification}](figs/PC_cat16_intensity_smrf_pmf_classification.png)
 
 
 ### Generating a DTM with PDAL
@@ -500,11 +500,11 @@ pdal pipeline --nostream example01_gdal_lasground.json
 
 The output maps view of these interpolated surfaces are compared to other gridding methods (Figure \ref{Fig:Cat16_smrf_PDAL_intensity_diff}). 
 
-![Map view of the PDAL SMRF classified DEM. Gridding was performed through the PDAL's writer.gdal approach. Intensity (top) and difference between adjusted lasground-classified PC and point2grid interpolated DTM (middle) is shown. Bottom illustrates the differences between the lasground-classified PC gridded with blast2dem minus gdal.writer. Note that points with high curvature appear to show the largest difference between the interpolation methods. The bash script for generating this figure is: example_01/example01_create_PDAL_SMRF_gdal_writer_gmt.sh. \label{Fig:Cat16_smrf_PDAL_intensity_diff}](figs/Cat16_lasground_PDAL_diff.png){height=85%}
+![Map view of the PDAL SMRF classified DEM. Gridding was performed through the PDAL's writer.gdal approach. Intensity (top) and difference between adjusted lasground-classified PC and point2grid interpolated DTM (middle) is shown. Bottom illustrates the differences between the lasground-classified PC gridded with blast2dem minus gdal.writer. Note that points with high curvature appear to show the largest difference between the interpolation methods. See [GMT bash script](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_01/example01_create_DEM_PDAL_comparison_ground_classification_gmt.sh). \label{Fig:Cat16_smrf_PDAL_intensity_diff}](figs/Cat16_lasground_PDAL_diff.png){height=85%}
 
 ### Combined PDAL pipeline using filtering steps and SMRF classification
 We can combine several steps in a PDAL pipeline to generate a ground-classified PC. In this pipeline, we first assign the class 0 to all points, perform an [Extended Local Minimum](https://pdal.io/stages/filters.elm.html#filters-elm) filter, remove [outliers](https://pdal.io/stages/filters.outlier.html#filters-outlier), perform [SMRF](https://pdal.io/stages/filters.smrf.html#filters-smrf) ground segmentation and only write the ground-classified files to a file using a [range filter](https://pdal.io/stages/filters.range.html#filters-range). 
-The pipeline is stored in [example_01/example01_PDAL_SMRF_pipeline.json](example_01/example01_PDAL_SMRF_pipeline.json):
+The pipeline is stored in [example_01/example01_PDAL_SMRF_pipeline.json](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_01/example01_PDAL_SMRF_pipeline.json):
 
 ```javascript
 {
@@ -545,7 +545,7 @@ The pipeline is run with the following command:
 pdal translate Pozo_USGS_UTM11_NAD83_cat16.laz Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2.las --json example01_PDAL_SMRF_pipeline.json
 ```
 
-This can be written to a DTM (nodata value = -9999) with the following pipeline [example01_writers_gdal_smrf_Zmean_1m.json]():
+This can be written to a DTM (nodata value = -9999) with the pipeline [example01_writers_gdal_smrf_Zmean_1m.json](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_01/example01_writers_gdal_smrf_Zmean_1m.json):
 ```javascript
 {
 "pipeline": [
@@ -585,7 +585,7 @@ First, write to CSV file using open-source las2las:
 las2las -i Pozo_USGS_UTM11_NAD83_cat16_smrf_cl2.las -o Pozo_USGS_UTM11_NAD83_cat16_smrf_cl2.csv -oparse xyz
 ```
 
-Second, add a header X,Y,Z,c,i,R,G,B and replace <space> with ,:
+Second, add a header X,Y,Z,c,i,R,G,B and replace \<space\> with , :
 ```bash
 sed -i '1s/^/X,Y,Z\n/' \
     Pozo_USGS_UTM11_NAD83_cat16_smrf_cl2.csv
@@ -593,7 +593,7 @@ sed -i 's/ /,/g' \
     Pozo_USGS_UTM11_NAD83_cat16_smrf_cl2.csv
 ```
 
-Third, create a VRT file to control how gdal is reading this file. Create a file called Pozo_USGS_UTM11_NAD83_cat16_smrf_cl2.vrt with content:
+Third, create a VRT file to control how gdal is reading this file. Create a file called *Pozo_USGS_UTM11_ NAD83_cat16_smrf_cl2.vrt* with content:
 ```javascript
 <OGRVRTDataSource>
     <OGRVRTLayer name="Pozo_USGS_UTM11_NAD83_cat16_smrf_cl2">
@@ -685,7 +685,7 @@ Fifth, the shapefile can be interpolated to a grid using *gdal_grid*. We need th
 The interpolated output tifs show differences: The IDW interpolation provides the closest results to the *blast2dem* approach, especially in the steeper areas (Figure \ref{Fig:Cat16_lasground_PDAL_diff}). 
 
 
-![Map view of the PDAL DTM, generated from SMRF classification. Middle row shows linearly interpolated ground-classified points and bottom row shows IDW interpolation. Both grids have been compared to the adjusted lasground grid that has been used as a comparison in Figure \ref{Fig:Cat16_lasground_comparison}). The bash script for generating this figure is: example_01/example01_create_DEM_PDAL_comparison_ground_classification_gmt.sh. \label{Fig:Cat16_lasground_PDAL_diff}](figs/Cat16_lasground_PDAL_diff.png){height=90%}
+![Map view of the PDAL DTM, generated from SMRF classification. Middle row shows linearly interpolated ground-classified points and bottom row shows IDW interpolation. Both grids have been compared to the adjusted lasground grid that has been used as a comparison in Figure \ref{Fig:Cat16_lasground_comparison}). See [GMT bash script](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_01/example01_create_DEM_PDAL_comparison_ground_classification_gmt.sh) for generating this figure. \label{Fig:Cat16_lasground_PDAL_diff}](figs/Cat16_lasground_PDAL_diff.png){height=90%}
 
 
 ## Interpolation to a grid: points2grid
@@ -776,15 +776,15 @@ The code is parallized using *multiprocess* and uses by default all available co
 
 The code performs several additional steps that are described in detail below. In summary, these are:
 
-1. Finding seed points with a given spacing, usually 1m to 5m.
+1. Finding seed points with a given spacing, usually 1m to 5m. The seed points are aligned to integer coordinates (e.g., UTM).
 
-2. For each seed point and its neighborhood (for 1m spacing of seed points points within a radius of 0.5m  are used), statistics are calculated from the PC (and all points). These include, for example slope, curvature, variability of height (Z) values (for a full list and detailed description see the manual). The parameters also allow detrending the points within the seed-point radius by its slope and derive surface-roughness parameters.
+2. For each seed point and its neighborhood (for 1m spacing of seed points, points within a radius of 0.5m  are used), statistics are calculated from the PC (and all points). These include, for example, slope, curvature, variability of height (Z) and slope-normalized Z values (for a full list and detailed description see below). The parameters also allow detrending the points within the seed-point radius by its slope and derive surface-roughness parameters not influenced by terrain slope.
 
-3. The code allows to subsample a point cloud either by a max. number of neighborhood points (e.g., k=5) or by defining a fraction of points to use to create a point cloud with approximately similar point-cloud density based on probabilities. This step of point-cloud homogenization can also be performed by other approaches (see for example [PDAL filters](https://pdal.io/stages/filters.html). The subsampled point cloud is written as a new LAS file.
+3. Two algorithms included allows to subsample a point cloud either by a max. number of neighborhood points (e.g., k=5) or by defining a fraction of points to use to create a point cloud with approximately similar point-cloud density based on probabilities. The subsampled point cloud is written as a new LAS file. This step of point-cloud homogenization can also be performed by other approaches (see for example [PDAL filters](https://pdal.io/stages/filters.html). Especially, the filter [Poisson Subsampling](https://pdal.io/stages/filters.sample.html#filters-sample), [Voxelcenternearestneighbor](https://pdal.io/stages/filters.voxelcenternearestneighbor.html?highlight=voxel%20centroid), and [Voxelcentroidnearestneighbor](https://pdal.io/stages/filters.voxelcentroidnearestneighbor.html?highlight=voxel%20centroid) are interesting. 
 
-4. The code interpolates the seed points to a grid and writes the output as a geotiff. In addition, a point cloud generates a LAS file of all seed points with the relevant metric.
+4. The code interpolates the seed points to a grid and writes the output as a geotiff. In addition, LAS files with seed points with relevant metrics are created.
 
-5. If GMT is installed (and that opion is chosen), a set of output maps is generated for initial visualization. 
+5. If GMT is installed (and that opion has been selected when running from the command line), a set of output maps is generated for initial visualization. 
 
 ## Input Parameters and options
 *NOTE: pc_geomorph_roughness relies on a PC containing only ground points. *
@@ -798,38 +798,12 @@ List of argument is obtained by
 ```bash
 python ~/PC_geomorph_roughness/pc_geomorph_roughness.py
 ```
-resulting in:
-```bash
-usage: pc_geomorph_roughness.py [-h] -i INLAS [--raster_m RASTER_M]
-                                [--raster_m_range RASTER_M_RANGE]
-                                [--subsample_1m_pc_k SUBSAMPLE_1M_PC_K]
-                                [--subsample_1m_pc_p SUBSAMPLE_1M_PC_P]
-                                [--redo_subsample_1m_pc_p REDO_SUBSAMPLE_1M_PC_P]
-                                [--k_nr_of_neighbors K_NR_OF_NEIGHBORS]
-                                [--dem_fname DEM_FNAME]
-                                [--shapefile_clip SHAPEFILE_CLIP]
-                                [--epsg_code EPSG_CODE]
-                                [--create_shapefiles CREATE_SHAPEFILES]
-                                [--create_geotiff CREATE_GEOTIFF]
-                                [--create_gmt CREATE_GMT]
-                                [--create_las CREATE_LAS]
-                                [--mean_z_only MEAN_Z_ONLY]
-                                [--nr_of_cores NR_OF_CORES]
-                                [--max_nr_of_neighbors_kdtree MAX_NR_OF_NEIGHBORS_KDTREE]
-                                [--pt_lower_threshold PT_LOWER_THRESHOLD]
-                                [--create_gmt_maps CREATE_GMT_MAPS]
-                                [--gmt_title GMT_TITLE]
-                                [--gmt_basename GMT_BASENAME]
-                                [--plot_plane_fits PLOT_PLANE_FITS]
-                                [--plot_plane_fits_nr_points PLOT_PLANE_FITS_NR_POINTS]
-```
-
-An extended help for each parameters is obtained by
+and an extended help for each parameters is obtained by
 ```bash
 python ~/PC_geomorph_roughness/pc_geomorph_roughness.py -h
 ```
 With explanation of input parameters in:
-```bash
+```
 usage: pc_geomorph_roughness.py [-h] -i INLAS [--raster_m RASTER_M]
                                 [--raster_m_range RASTER_M_RANGE]
                                 [--subsample_1m_pc_k SUBSAMPLE_1M_PC_K]
@@ -852,6 +826,7 @@ usage: pc_geomorph_roughness.py [-h] -i INLAS [--raster_m RASTER_M]
                                 [--gmt_basename GMT_BASENAME]
                                 [--plot_plane_fits PLOT_PLANE_FITS]
                                 [--plot_plane_fits_nr_points PLOT_PLANE_FITS_NR_POINTS]
+                                [--ransac_on RANSAC_ON]
 
 PointCloud (PC) processing for DEM statistics. Deriving gridded ground data
 (elevation and slope) using centroid coordinates. B. Bookhagen
@@ -986,24 +961,30 @@ optional arguments:
                         seed point. Default is --plot_plane_fits_nr_points 10.
                         You will need to adjust this for larger neighborhood
                         radii.
+  --ransac_on RANSAC_ON
+                        Turn RANSAC fitting on. This will significantly
+                        increase the processing time, but will give better and
+                        tighter fits.
 ```
 
 ## Output Files
 The folder *HDF* contains all results in HDF format. The same results are also stored in CSV format. Both can be readily loaded by post-processing software (Python, Matlab, R). 
 The following fields are stored: 
 
-* 1SeedX, 2SeedY, 3SeedZ: contain the seed-point location (this is a real point in the PC)
-* 4MeanX, 5MeanY, 6MeanZ: contain the average of all X, Y, Z points for the seed point (interpolated point)
-* 7Z_min, 8Z_max: minimum and maximum Z (height) for this seed point
-* 9Dz_max, 10Dz_min, 11Dz_std: values are obtained from normalized points. All points within a seed-point radius were normalized by their slope (i.e., a fitted plane has been subtracted from all points and their mean elevation is now 0). These fields contain maximum, minimum, and standard deviation of the normalized PC.
-* 12Dz_range, 13Dz_9010p, 14Dz_7525p, 15Dz_var: Additional metrics derived from the normalized PC: range (max. - min.), 90th minus 10th percentile, 75th minus 25 th percentile (IQR: InterQuartileRange), variance
-* 16Slp_p1: Linear (polynomial order=1) least-squared fit
-* 17Slp_p1r: Residuals linear (polynomial order=1) least-squared fit
-* 18Slp_p2: Second order polynomial (polynomial order=2) least-squared fit
-* 19Slp_p2r: Residuals of second order polynomial (polynomial order=2) least-squared fit
-* 20Nr_lidar: number of lidar points in the seed-point neighborhood
-* 21CurvLSQ: Second order polynomial least-square fit of curvature
-* 22StdZ: Standard deviation of elevations in seed-point neighborhood (not normalized).
+* *1SeedX, 2SeedY, 3SeedZ*: contain the seed-point location (this is a real point in the PC)
+* *4MeanX, 5MeanY, 6MeanZ*: contain the average of all X, Y, Z points for the seed point calculated by taking the average of each coordinate. This results in an interpolated point
+* *7Z_min, 8Z_max*: minimum and maximum Z (height) for this seed point
+* *9Dz_max, 10Dz_min, 11Dz_std*: values are obtained from slope-normalized points. All points within a seed-point radius were normalized by their slope (i.e., a fitted plane has been subtracted from all points and their mean elevation is now 0). These fields contain maximum, minimum, and standard deviation of the normalized PC.
+* *12Dz_range, 13Dz_9010p, 14Dz_7525p, 15Dz_var*: Additional metrics derived from the slope-normalized PC: range (max. - min.), 90th minus 10th percentile, 75th minus 25 th percentile (IQR: InterQuartileRange), variance
+* *16Slp_p1*: Linear (polynomial order=1) least-squared fit
+* *17Slp_p1r*: RMSE in meter from linear (polynomial order=1) least-squared fit
+* *18Slp_p2*: Second order polynomial (polynomial order=2) least-squared fit
+* *19Slp_p2r*: RMSE in meter of second-order polynomial (polynomial order=2) least-squared fit
+* *20Nr_lidar*: number of lidar points in the seed-point neighborhood, will increase with larger radii.
+* *21CC_p2, 22CT_p2, 23CP_p2*: Contour Curvature, tangential Curvature, and profile Curvature derived from fitting the second-order polynom.
+* *24CC_p4, 25CT_p4, 26CP_p4*: Contour Curvature, tangential Curvature, and profile Curvature derived from fitting the fourth-order polynom.
+* *27C_p4r*: RMSE in meter of fourth-order polynomial (polynomial order=4) least-squared fit
+* *28StdZ*: Standard deviation of elevations in seed-point neighborhood (not slope-normalized).
 
 ### GeoTIFF files
 There are several interpolated results onto equally-spaced grids in the *geotiff* folder. These can be used for visualization in QGIS or GMT. See map outputs below REFERENCE.
@@ -1011,18 +992,18 @@ There are several interpolated results onto equally-spaced grids in the *geotiff
 ### LAS files
 The results of the seed-point analysis are also written to las files (*LAS* directory). These are colored by their respective variables (Figure \ref{Fig:Cat16_PC_zoom_Z_slope_IQR_results}). Currently, the following parameters are created and colored by different colormaps:
 
-* *\*_xyzmean.las*: Mean position of X, Y, Z seed points, colored by elevation
-* *\*_iqrdZ.las*: IQR of normalized elevation (roughness indicator)
-* *\*_slope_p1_lstsq.las*: Linear (polynomial order = 1) least-square fits of planar slope
-* *\*_slope_p2_lstsq.las*: Second order (polynomial order = 2) least-square fits of planar slope
-* *\*_radius_mean_curv.las*: Second order (polynomial order = 2) least-square fits of curvature
+* *_xyzmean.las: Mean position of X, Y, Z seed points, colored by elevation
+* *_iqrdZ.las: IQR of normalized elevation (roughness indicator)
+* *_slope_p1_lstsq.las: Linear (polynomial order = 1) least-square fits of planar slope
+* *_slope_p2_lstsq.las: Second order (polynomial order = 2) least-square fits of planar slope
+* *_radius_mean_curv.las: Second order (polynomial order = 2) least-square fits of curvature
 
-## Example 01 - subcatchment of the SW area of Pozo on SCI
+# Example 01 - subcatchment of the SW area of Pozo on SCI
 In order to show how *PC_geomorph_roughness* works, we show the usuall steps done to process a catchment.
 
 *NOTE: If you re-run PC_geomorph_roughness with different options, make sure to remove the directories or files containing the data. By default, PC_geomorph_roughness will load existing HDF5 and geotiff files. For example, do a **rm -fr hdf/ geotiff/ LAS/ pickle/** *
 
-### Summary of pre-processing steps to create a classified point cloud
+## Summary of pre-processing steps to create a classified point cloud
 In order to generate a ground-classified point cloud, we use the following script and approach:
 ```bash
 cd example_01
@@ -1035,8 +1016,8 @@ mkdir dtm_interp
 pdal pipeline --nostream example01_writers_gdal_smrf_Zmean_1m.json
 ```
 
-### First steps: random subsampling
-Following steps are necessary to process the SMRF-classified PC (*-i Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2.las*) with smoothing ranging from 1 to 10 m in steps of 1 m (*--raster_m_range "1 10 1"*), clipping the interpolated surface with a shapefile outlining the catchment (*--shapefile_clip Pozo_DTM_noveg_UTM11_NAD83_cat16.shp*), assigning the proper EPSG code to the output GeoTIFF file (*--epsg_code 26911*), using all available cores for statistical calculation (*--nr_of_cores 0*), creating output GeoTIFF files (*--create_geotiff 1*), not creating GMT masp (*--create_gmt 0*), not creating shapefiles (*--create_shapefiles 0*), but creating a LAS file with mean elevation (*--create_las 1*), and subsampling the pointcloud with k=10 neighbors (*--subsample_1m_pc_k 10*). In order to keep track of the output, we pipe the text output to a log file. Because some python numpy operations may produce warnings (for example, if there are not enough points in a grid cell), we turn off these warnings with *-W ignore*:
+## First steps: random subsampling
+Following steps are necessary to process the SMRF-classified PC (*-i Pozo_USGS_UTM11_NAD83_cat16_ SMRF_cl2.las*) with smoothing ranging from 1 to 10 m in steps of 1 m (*--raster_m_range "1 10 1"*), clipping the interpolated surface with a shapefile outlining the catchment (*--shapefile_clip Pozo_DTM_noveg_UTM11_NAD83_cat16.shp*), assigning the proper EPSG code to the output GeoTIFF file (*--epsg_code 26911*), using all available cores for statistical calculation (*--nr_of_cores 0*), creating output GeoTIFF files (*--create_geotiff 1*), not creating GMT masp (*--create_gmt 0*), not creating shapefiles (*--create_shapefiles 0*), but creating a LAS file with mean elevation (*--create_las 1*), and subsampling the pointcloud with k=10 neighbors (*--subsample_1m_pc_k 10*). In order to keep track of the output, we pipe the text output to a log file. Because some python numpy operations may produce warnings (for example, if there are not enough points in a grid cell), we turn off these warnings with *-W ignore*:
 
 ```bash
 python -W ignore ~/Dropbox/soft/github/PC_geomorph_roughness/pc_geomorph_roughness.py \
@@ -1049,8 +1030,8 @@ python -W ignore ~/Dropbox/soft/github/PC_geomorph_roughness/pc_geomorph_roughne
     2>&1 | tee Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_pc_geomorph_roughness_subsample_k10_1_10_1.log
 ```
 
-Use displaz to view the randomly subsampled point cloud with k=5 neighbors (*displaz Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_randomsubsampled_k10.las*).
-The directory *LAS* contains the seed-point outputs at the requested spacings: The file *LAS/Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_seed_pts_1.00m_radius_xyzmean.las* contains seed-point spacing of 1m and the mean X, Y, Z values in color.
+Use displaz to view the randomly subsampled point cloud with k=5 neighbors (displaz Pozo_USGS_UTM11_ NAD83_cat16_SMRF_cl2_randomsubsampled_k10.las).
+The directory *LAS* contains the seed-point outputs at the requested spacings: The file *LAS/ Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_seed_pts_1.00m_radius_xyzmean.las* contains seed-point spacing of 1m and the mean X, Y, Z values in color.
 Interesting LAS files to explore are, for example, *LAS/Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_seed_pts_2.00m_radius_slope_p1_lstsq.las* that show the least-squared fit of the slope derived from all points in a 2m neighborhood (r=1m).
 
 We investigate the mean height, least-squared slope and IQR of normalized elevation in the LAS directory (Figures \ref{Fig:Cat16_PC_zoom_Z_slope_IQR_results} and \ref{Fig:Cat16_PC_zoom_Z_slope_IQR_results_2nd}):
@@ -1064,7 +1045,7 @@ We investigate the mean height, least-squared slope and IQR of normalized elevat
 
 ![Alternative oblique view of a PC showing mean elevation for each seed point (top left), IQR of normalized elevation (top right), least-squared linear (polynom order=1) slope (bottom left), least-squared linear (polynom order=2) slope (bottom right). \label{Fig:Cat16_PC_zoom_Z_slope_IQR_results_2nd}](figs/Cat16_PC_zoom_Z_slope_IQR_results_2nd.png){height=90%}
 
-#### What polynomial fit is most appropriate?
+### What polynomial fit is most appropriate?
 The code fits a polynom to all points in the neighborhood. It uses a least-squared approach to reduce the impact of outliers. For polynom order=1 (planar fit), the results are shown as a point cloud in Figure \ref{Fig:Cat16_PC_zoom_Z_slope_IQR_results_2nd}-bottom left. We can compare the fits for some example point. In most cases, the least-squared planar (order=1) fit for slope determination works just fine (see Figures \ref{Fig:PlaneFit_seed00020901} to \ref{Fig:PlaneFit_seed00020901}. The curvature calculation is based on the mean curvature of the second-order polynom.
 
 ![Characteristic example where planar (order=1) fit in black colors is very close to a polynomial fit with order=2 in blue color. Orginial points are blue dots. Right plot shows normalized point heights and their distances: black dots are distances for the planar fit, blue points for the polynomial order=2 fit.\label{Fig:PlaneFit_seed00020901}](figs/PlaneFit_seed00020901.png){height=90%}
@@ -1076,7 +1057,7 @@ The code fits a polynom to all points in the neighborhood. It uses a least-squar
 ![Characteristic example where planar (order=1) fit in black colors is very close to a polynomial fit with order=2 in blue color. Orginial points are blue dots. Right plot shows normalized point heights and their distances: black dots are distances for the planar fit, blue points for the polynomial order=2 fit.\label{Fig:PlaneFit_seed00020901}](figs/PlaneFit_seed00020901.png){height=90%}
 
 
-### Next steps: density-based subsampling
+## Next steps: density-based subsampling
 *NOTE: If you re-run PC_geomorph_roughness with different options, make sure to remove the directories or files containing the data. By default, PC_geomorph_roughness will load existing HDF5 and geotiff files. Save or move your results to a different folder and remove folders. For example, do a **rm -fr hdf/ geotiff/ LAS/ pickle/** *
 
 In addition to the above example, we now subsample the pointcloud to 80% of the original points by PC density. Note the option *--subsample_1m_pc_p 0.8*.
@@ -1092,7 +1073,7 @@ python -W ignore ~/Dropbox/soft/github/PC_geomorph_roughness/pc_geomorph_roughne
     2>&1 | tee Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_pc_geomorph_roughness_subsample_p08_1_10_1.log
 ```
 
-### Next steps: density-based subsampling and GMT map generation
+## Next steps: density-based subsampling and GMT map generation
 In addition to the above example, we now subsample the pointcloud to 80% of the original points by PC density and we generate GMT output files. Note the options *--create_gmt_maps*, *--gmt_title*, and *--gmt_basename*.
 
 Before maps can be generate with GMT, the GMT script will need to be edited. See *PC_geomorph_roughness/NEED_TO_EDIT_create_map_view_of_PC_geomorph_output_gmt.sh* as a starting point.
@@ -1116,24 +1097,33 @@ example_01/example01_create_map_view_of_PC_geomorph_output_gmt.sh \
     --gmt_basename "Example01_cl2" \
     2>&1 | tee Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_pc_geomorph_roughness_subsample_p08_1_10_1.log
 ```
-This will generate a set of output maps with GMT that are illustrated below (Figures \ref{Fig:Ex01_1.0m_2panel_DEMs}, \ref{Fig:Ex01_1.0m_2panel_SLPs}, \ref{Fig:Ex01_1.0m_2panel_NRLIDARPTS_DZ_STDDEV}, \ref{Fig:Ex01_1.0m_2panel_DZ9010P_IQR}, \ref{Fig:Slope_1_2_3_5m.png}, \ref{Fig:NrLidarPots_1_2_3_5m}, \ref{Fig:dz_IQR_1_2_3_5m}).
+This will generate a set of output maps with GMT that are illustrated below (Figures \ref{Fig:Ex01_cl2_1.0m_2panel_DEMs}, \ref{Fig:Ex01_cl2_1.0m_2panel_SLPs}, \ref{Fig:Ex01_cl2_1.0m_2panel_NRLIDARPTS_DZ_STDDEV}, \ref{Fig:Ex01_cl2_1.0m_2panel_DZ9010P_IQR}, \ref{Fig:Ex01_cl2_1.0m_2panel_RMSE}, \ref{Fig:NrLidarPots_1_2_3_5m}, \ref{Fig:SMRF_slopeP1_1_2_3_5m.png}, \ref{Fig:SMRF_slopeP2_1_2_3_5m.png},\ref{Fig:dz_IQR_1_2_3_5m}, \ref{Fig:SMRF_RMSE_P1_1_2_3_5m}, \ref{Fig:SMRF_RMSE_P2_1_2_3_5m}). 
 
-![Output of 1m DEM generated from the interpolated point cloud and difference DEM between the mean seed height and the interpolated DEM. Note that the interpolated DEM is based on all ground points, while the mean-seed point DEM used the largely reduced seed point PC.\label{Fig:Ex01_1.0m_2panel_DEMs}](figs/Ex01_1.0m_2panel_DEMs.png){height=90%}
+![Output of 1m DEM generated from the interpolated point cloud and difference DEM between the mean seed height and the interpolated DEM. Note that the interpolated DEM is based on all ground points, while the mean-seed point DEM used the largely reduced seed point PC.\label{Fig:Ex01_cl2_1.0m_2panel_DEMs}](figs/Ex01_cl2_1.0m_2panel_DEMs.png){height=90%}
 
-![Output of the slope values derived for each seed points and using the seed-point neighbors. Note that for some areas, slopes are steep because of few points leading to low fit quality (large residual, not shown). \label{Fig:Ex01_1.0m_2panel_SLPs}](figs/Ex01_1.0m_2panel_SLPs.png){height=90%}
+![Output of the slope values derived for each seed points and using the seed-point neighbors. The second-order polynomial fit usually provides more realist results for natural (steep) terrain. Note that for some areas, slopes are steep because of few points leading to low fit quality (large residual, cf \ref{Fig:Ex01_cl2_1.0m_2panel_RMSE}). \label{Fig:Ex01_cl2_1.0m_2panel_SLPs}](figs/Ex01_cl2_1.0m_2panel_SLPs.png){height=90%}
 
-![Output of number of points for seed-point neighborhood and the standard deviation of normalized points (normalized by slopes). The higher the standard deviation, the more rough the terrain. \label{Fig:Ex01_1.0m_2panel_NRLIDARPTS_DZ_STDDEV}](figs/Ex01_1.0m_2panel_NRLIDARPTS_DZ_STDDEV.png){height=90%}
+![Output of number of points for seed-point neighborhood and the standard deviation of normalized points (normalized by slopes). The higher the standard deviation, the more rough the terrain. \label{Fig:Ex01_cl2_1.0m_2panel_NRLIDARPTS_DZ_STDDEV}](figs/Ex01_cl2_1.0m_2panel_NRLIDARPTS_DZ_STDDEV.png){height=90%}
 
-![Results from slope-normalized roughness calculations: 90th minus 10th percentile and inter-quartil range (IQR: 75th-25th percentile) \label{Fig:Ex01_1.0m_2panel_DZ9010P_IQR}](figs/Ex01_1.0m_2panel_DZ9010P_IQR.png){height=90%}
+![Results from slope-normalized roughness calculations: 90th minus 10th percentile and inter-quartil range (IQR: 75th-25th percentile) \label{Fig:Ex01_cl2_1.0m_2panel_DZ9010P_IQR}](figs/Ex01_cl2_1.0m_2panel_DZ9010P_IQR.png){height=90%}
+
+![RMSE (in meter) from the first and second order polynomial fitting. \label{Fig:Ex01_cl2_1.0m_2panel_RMSE}](figs/Ex01_cl2_1.0m_2panel_RMSE.png){height=90%}
 
 ![Number of points in analysis radii increase rapidly and will lead to more robust results. Here, the number of neighborhood points for 1, 2, 3, and 5 m of interpolation diameters are shown. Note the different ranges of the colorscale \label{Fig:NrLidarPots_1_2_3_5m.png}](figs/NrLidarPots_1_2_3_5m.png){height=90%}
 
-![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for 1, 2, 3, and 5 m of interpolation diameters are shown. We only show the planar (polynomial order=1) slopes. \label{Fig:Slope_1_2_3_5m.png}](figs/Slope_1_2_3_5m.png){height=90%}
+![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the planar (polynomial order=1) slopes. \label{Fig:SMRF_slopeP1_1_2_3_5m.png}](figs/SMRF_slopeP1_1_2_3_5m.png){height=90%}
+
+![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the second order polynoms (polynomial order=2) slopes. These have generally a lower RMSE than polynomial orders=1. \label{Fig:figs/SMRF_slopeP2_1_2_3_5m.png}](figs/SMRF_slopeP2_1_2_3_5m.png){height=90%}
 
 ![The IQR reflects channels and arroyos with increasing interpolation radii. Here, the slope-normalized elevation (IQR) for 1, 2, 3, and 5 m of interpolation diameters are shown. \label{Fig:dz_IQR_1_2_3_5m.png}](figs/dz_IQR_1_2_3_5m.png){height=90%}
 
-### Analysis of the lasground classified PC
-In a separate approach, we have used the lasground-classified PC to illustrate the differences for the PDAL-SMRF classifed PC. This file is also provided on the github page ([example_01/Pozo_USGS_UTM11_NAD83_cat16_clg_cl2.laz](example_01/Pozo_USGS_UTM11_NAD83_cat16_clg_cl2.laz)).
+![RMSE (m) from linear fits (polynomial order = 1) for radii 1, 2, 3, and 5 m are shown. \label{Fig:SMRF_RMSE_P1_1_2_3_5m.png}](figs/SMRF_RMSE_P1_1_2_3_5m.png){height=90%}
+
+![RMSE (m) from linear fits (polynomial order = 2) for radii 1, 2, 3, and 5 m are shown. \label{Fig:SMRF_RMSE_P2_1_2_3_5m.png}](figs/SMRF_RMSE_P2_1_2_3_5m.png){height=90%}
+
+
+## Analysis of the lasground classified PC
+In a separate approach, we have used the lasground-classified PC to illustrate the differences for the PDAL-SMRF classifed PC. This file is also provided on the github page ([example_01/Pozo_USGS_UTM11_NAD83_cat16_clg_cl2.laz](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_01/Pozo_USGS_UTM11_NAD83_cat16_clg_cl2.laz)).
 
 We first save previous results:
 ```bash
@@ -1162,14 +1152,19 @@ example_01/example01_create_map_view_of_PC_geomorph_output_gmt.sh \
     2>&1 | tee Pozo_USGS_UTM11_NAD83_cat16_lasground_cl2_pc_geomorph_roughness_subsample_p08_1_10_1.log
 ```
 
-The results are similar to the PDAL-SMRF classified PC (Figures \ref{Fig:lasground_slope_1_2_3_5m.png} and \ref{Fig:lasground_dz_IQR_1_2_3_5m.png}).
+The results are similar to the PDAL-SMRF classified PC (Figures \ref{Fig:lasground_slopeP1_1_2_3_5m.png}, \ref{Fig:lasground_slopeP2_1_2_3_5m.png}, \ref{Fig:lasground_dz_IQR_1_2_3_5m.png}, \ref{Fig:lasground_RMSE_P1_1_2_3_5m.png}, and \ref{Fig:lasground_RMSE_P2_1_2_3_5m.png}).
 
-![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for 1, 2, 3, and 5 m of interpolation diameters are shown. We only show the planar (polynomial order=1) slopes. \label{Fig:lasground_slope_1_2_3_5m.png}](figs/lasground_slope_1_2_3_5m.png){height=90%}
+![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the planar (polynomial order=1) slopes. \label{Fig:lasground_slopeP1_1_2_3_5m.png}](figs/lasground_slopeP1_1_2_3_5m.png){height=90%}
 
-![The IQR reflects channels and arroyos with increasing interpolation radii. Here, the slope-normalized elevation (IQR) for 1, 2, 3, and 5 m of interpolation diameters are shown. \label{Fig:lasground_dz_IQR_1_2_3_5m.png}](figs/lasground_dz_IQR_1_2_3_5m.png){height=90%}
+![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the second order polynoms (polynomial order=2) slopes. These have generally a lower RMSE than polynomial orders=1. \label{Fig:figs/lasground_slopeP2_1_2_3_5m.png}](figs/lasground_slopeP2_1_2_3_5m.png){height=90%}
 
+![The IQR reflects channels and arroyos with increasing interpolation radii. Here, the slope-normalized elevation (IQR) for 1, 2, 3, and 5 m of interpolation diameters are shown. \label{Fig:dz_IQR_1_2_3_5m.png}](figs/dz_IQR_1_2_3_5m.png){height=90%}
 
-## Example 02 and PC densities
+![RMSE (m) from linear fits (polynomial order = 1) for radii 1, 2, 3, and 5 m are shown. \label{Fig:lasground_RMSE_P1_1_2_3_5m.png}](figs/lasground_RMSE_P1_1_2_3_5m.png){height=90%}
+
+![RMSE (m) from second-order fits (polynomial order = 2) for radii 1, 2, 3, and 5 m are shown. \label{Fig:lasground_RMSE_P2_1_2_3_5m.png}](figs/lasground_RMSE_P2_1_2_3_5m.png){height=90%}
+
+# Example 02 and PC densities
 For a different catchment (stored in the folder Example 02), we have investigated the impact of PC densities on the outcome. We don't provide detailed processing steps, but only a short discussion of PC Densities.
 
 In the *map* subdirectory several outputs are generated. 
@@ -1270,14 +1265,15 @@ A comparison of point densities across several neighborhood sizes reveals that t
 
 ![PC density for 1, 2, 3, and 4m seed spacing for k=8 points/m2 subsampling. Note that discrepancies tend to homogenize at larger grid-cell sizes. There were  n=459,273 original points.\label{Fig:k8_DEM_PC_density_1m_2m_3m_4m}](figs/k8_DEM_PC_density_1m_2m_3m_4m.png) 
 
-## Example 03
+# Example 03
 In the final step, we provide a setup for an additional catchment in folder example_03
 
-### Pre-processing and PC classification
+## Pre-processing and PC classification
 ```bash
 cd example_03
 pdal translate Pozo_USGS_UTM11_NAD83_cat17.laz Pozo_USGS_UTM11_NAD83_cat17_SMRF_cl2.las --json example03_PDAL_SMRF_pipeline.json
 ```
+
 Here, we experienced some issues with PDAL-SMRF (not all ground points were classified) and we relied on the lasground classification:
 ```bash
 wine /opt/LAStools/bin/lasclassify.exe -i Pozo_USGS_UTM11_NAD83_cat17.laz -olaz -set_user_data 0 -set_classification 0 -o Pozo_USGS_UTM11_NAD83_cat17_uncl.laz
@@ -1287,9 +1283,9 @@ wine /opt/LAStools/bin/las2las.exe -i Pozo_USGS_UTM11_NAD83_cat17_clg.laz -keep_
 mkdir dtm_interp
 wine /opt/LAStools/bin/blast2dem.exe -keep_class 2 -utm 11N -nad83 -meter -elevation_meter -merged -step 1 -i Pozo_USGS_UTM11_NAD83_cat17_clg_cl2.laz -o dtm_interp/Pozo_USGS_UTM11_NAD83_cat17_clg_cl2_1m.tif
 ```
-This file is provided in [example_03/Pozo_USGS_UTM11_NAD83_cat17_clg.laz](example_03/Pozo_USGS_UTM11_NAD83_cat17_clg.laz) and [example_03/Pozo_USGS_UTM11_NAD83_cat17_clg_cl2.laz](example_03/Pozo_USGS_UTM11_NAD83_cat17_clg_cl2.laz).
+This file is provided in [example_03/Pozo_USGS_UTM11_NAD83_cat17.laz](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_03/Pozo_USGS_UTM11_NAD83_cat17.laz) and the lastools-classified PC [example_03/Pozo_USGS_UTM11_NAD83_cat17_clg.laz](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_03/Pozo_USGS_UTM11_NAD83_cat17_clg.laz).
 
-### Density-based subsampling and GMT map generation
+## Density-based subsampling and GMT map generation
 We use the provided GMT script (example03_create_map_view_of_PC_geomorph_output_gmt.sh) to generate map views from the subsampled PC.
 
 *NOTE: Make sure to give the full path to the Shapefile used as clip and for the GMT Shell script!*

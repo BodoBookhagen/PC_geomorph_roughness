@@ -15,7 +15,7 @@
     },
     {
       "type":"filters.smrf",
-      "last":true,
+      "returns":"last,only",
       "ignore":"Classification[7:7]",
       "cell":1.0,
       "slope":0.2,

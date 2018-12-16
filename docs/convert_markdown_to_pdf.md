@@ -50,16 +50,20 @@ stack install
 
 # Convert Markdown to PDF
 (or any other format, just change filename extension)
+```bash
 d=$(date +%Y-%m-%d)
 pandoc --number-sections --listings -H auto_linebreak_listings.tex \
     --toc -V toc-title:"Table of Contents" \
     --variable papersize=a4paper \
-    --variable urlcolor=cyan \
+    --variable urlcolor=blue \
     -s PC_geomorph_roughness_manual.md -o PC_geomorph_roughness_manual_${d}.pdf \
     --template eisvogel
+```
 
+Next, convert to lower resolution PDFs with GhostScript:
+
+```bash
 gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=PC_geomorph_roughness_manual_ebook.pdf PC_geomorph_roughness_manual_${d}.pdf
-
 gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/printer -dNOPAUSE -dQUIET -dBATCH -sOutputFile=PC_geomorph_roughness_manual.pdf PC_geomorph_roughness_manual_${d}.pdf
-
 rm -fr PC_geomorph_roughness_manual_${d}.pdf
+```
