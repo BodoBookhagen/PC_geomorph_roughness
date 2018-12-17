@@ -998,12 +998,18 @@ The results of the seed-point analysis are also written to las files (*LAS* dire
 * *_slope_p2_lstsq.las: Second order (polynomial order = 2) least-square fits of planar slope
 * *_radius_mean_curv.las: Second order (polynomial order = 2) least-square fits of curvature
 
-# Example 01 - subcatchment of the SW area of Pozo on SCI
+# Examples
+In the following three sections, we provide detailed step-by-step explanation of the processing with *PC_geomorph_roughness*. There are GMT scripts included that generate output maps. We focus on three sub-catchments in the SW part of Santa Cruz Island (Pozo catchment) \ref{Fig:Pozo_DEM_examples_map}. All data are available through [OpenTopography](https://opentopography.org/), but a subset of the data is provided in the respective subdirectories.
+
+![Topographic overview map of the southwestern part of Santa Cruz Island (Pozo catchment). The four example catchments discussed are outlined by polygons (see [GMT bash script](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_01/plot_GMT_Pozo_4catchments_overview.sh)) for creating this map.\label{Fig:Pozo_DEM_examples_map}](figs/Pozo_DEM_examples_map.png)
+
+
+## Example 01 - subcatchment of the SW area of Pozo on SCI
 In order to show how *PC_geomorph_roughness* works, we show the usuall steps done to process a catchment.
 
 *NOTE: If you re-run PC_geomorph_roughness with different options, make sure to remove the directories or files containing the data. By default, PC_geomorph_roughness will load existing HDF5 and geotiff files. For example, do a **rm -fr hdf/ geotiff/ LAS/ pickle/** *
 
-## Summary of pre-processing steps to create a classified point cloud
+### Summary of pre-processing steps to create a classified point cloud
 In order to generate a ground-classified point cloud, we use the following script and approach:
 ```bash
 cd example_01
@@ -1016,7 +1022,7 @@ mkdir dtm_interp
 pdal pipeline --nostream example01_writers_gdal_smrf_Zmean_1m.json
 ```
 
-## First steps: random subsampling
+### First steps: random subsampling
 Following steps are necessary to process the SMRF-classified PC (*-i Pozo_USGS_UTM11_NAD83_cat16_ SMRF_cl2.las*) with smoothing ranging from 1 to 10 m in steps of 1 m (*--raster_m_range "1 10 1"*), clipping the interpolated surface with a shapefile outlining the catchment (*--shapefile_clip Pozo_DTM_noveg_UTM11_NAD83_cat16.shp*), assigning the proper EPSG code to the output GeoTIFF file (*--epsg_code 26911*), using all available cores for statistical calculation (*--nr_of_cores 0*), creating output GeoTIFF files (*--create_geotiff 1*), not creating GMT masp (*--create_gmt 0*), not creating shapefiles (*--create_shapefiles 0*), but creating a LAS file with mean elevation (*--create_las 1*), and subsampling the pointcloud with k=10 neighbors (*--subsample_1m_pc_k 10*). In order to keep track of the output, we pipe the text output to a log file. Because some python numpy operations may produce warnings (for example, if there are not enough points in a grid cell), we turn off these warnings with *-W ignore*:
 
 ```bash
@@ -1031,8 +1037,8 @@ python -W ignore ~/Dropbox/soft/github/PC_geomorph_roughness/pc_geomorph_roughne
 ```
 
 Use displaz to view the randomly subsampled point cloud with k=5 neighbors (displaz Pozo_USGS_UTM11_ NAD83_cat16_SMRF_cl2_randomsubsampled_k10.las).
-The directory *LAS* contains the seed-point outputs at the requested spacings: The file *LAS/ Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_seed_pts_1.00m_radius_xyzmean.las* contains seed-point spacing of 1m and the mean X, Y, Z values in color.
-Interesting LAS files to explore are, for example, *LAS/Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_seed_pts_2.00m_radius_slope_p1_lstsq.las* that show the least-squared fit of the slope derived from all points in a 2m neighborhood (r=1m).
+The directory *LAS* contains the seed-point outputs at the requested spacings: The file *LAS/ Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_seed_pts_1.00m_ radius_xyzmean.las* contains seed-point spacing of 1m and the mean X, Y, Z values in color.
+Interesting LAS files to explore are, for example, *LAS/Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_seed_pts_2.00m_ radius_slope_p1_lstsq.las* that show the least-squared fit of the slope derived from all points in a 2m neighborhood (r=1m).
 
 We investigate the mean height, least-squared slope and IQR of normalized elevation in the LAS directory (Figures \ref{Fig:Cat16_PC_zoom_Z_slope_IQR_results} and \ref{Fig:Cat16_PC_zoom_Z_slope_IQR_results_2nd}):
 
@@ -1057,7 +1063,7 @@ The code fits a polynom to all points in the neighborhood. It uses a least-squar
 ![Characteristic example where planar (order=1) fit in black colors is very close to a polynomial fit with order=2 in blue color. Orginial points are blue dots. Right plot shows normalized point heights and their distances: black dots are distances for the planar fit, blue points for the polynomial order=2 fit.\label{Fig:PlaneFit_seed00020901}](figs/PlaneFit_seed00020901.png){height=90%}
 
 
-## Next steps: density-based subsampling
+### Next steps: density-based subsampling
 *NOTE: If you re-run PC_geomorph_roughness with different options, make sure to remove the directories or files containing the data. By default, PC_geomorph_roughness will load existing HDF5 and geotiff files. Save or move your results to a different folder and remove folders. For example, do a **rm -fr hdf/ geotiff/ LAS/ pickle/** *
 
 In addition to the above example, we now subsample the pointcloud to 80% of the original points by PC density. Note the option *--subsample_1m_pc_p 0.8*.
@@ -1073,7 +1079,7 @@ python -W ignore ~/Dropbox/soft/github/PC_geomorph_roughness/pc_geomorph_roughne
     2>&1 | tee Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_pc_geomorph_roughness_subsample_p08_1_10_1.log
 ```
 
-## Next steps: density-based subsampling and GMT map generation
+### Next steps: density-based subsampling and GMT map generation
 In addition to the above example, we now subsample the pointcloud to 80% of the original points by PC density and we generate GMT output files. Note the options *--create_gmt_maps*, *--gmt_title*, and *--gmt_basename*.
 
 Before maps can be generate with GMT, the GMT script will need to be edited. See *PC_geomorph_roughness/NEED_TO_EDIT_create_map_view_of_PC_geomorph_output_gmt.sh* as a starting point.
@@ -1122,7 +1128,7 @@ This will generate a set of output maps with GMT that are illustrated below (Fig
 ![RMSE (m) from linear fits (polynomial order = 2) for radii 1, 2, 3, and 5 m are shown. \label{Fig:SMRF_RMSE_P2_1_2_3_5m.png}](figs/SMRF_RMSE_P2_1_2_3_5m.png){height=90%}
 
 
-## Analysis of the lasground classified PC
+### Analysis of the lasground classified PC
 In a separate approach, we have used the lasground-classified PC to illustrate the differences for the PDAL-SMRF classifed PC. This file is also provided on the github page ([example_01/Pozo_USGS_UTM11_NAD83_cat16_clg_cl2.laz](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_01/Pozo_USGS_UTM11_NAD83_cat16_clg_cl2.laz)).
 
 We first save previous results:
@@ -1164,7 +1170,7 @@ The results are similar to the PDAL-SMRF classified PC (Figures \ref{Fig:lasgrou
 
 ![RMSE (m) from second-order fits (polynomial order = 2) for radii 1, 2, 3, and 5 m are shown. \label{Fig:lasground_RMSE_P2_1_2_3_5m.png}](figs/lasground_RMSE_P2_1_2_3_5m.png){height=90%}
 
-# Example 02 and PC densities
+## Example 02 and PC densities
 For a different catchment (stored in the folder Example 02), we have investigated the impact of PC densities on the outcome. We don't provide detailed processing steps, but only a short discussion of PC Densities.
 
 In the *map* subdirectory several outputs are generated. 
@@ -1265,10 +1271,10 @@ A comparison of point densities across several neighborhood sizes reveals that t
 
 ![PC density for 1, 2, 3, and 4m seed spacing for k=8 points/m2 subsampling. Note that discrepancies tend to homogenize at larger grid-cell sizes. There were  n=459,273 original points.\label{Fig:k8_DEM_PC_density_1m_2m_3m_4m}](figs/k8_DEM_PC_density_1m_2m_3m_4m.png) 
 
-# Example 03
-In the final step, we provide a setup for an additional catchment in folder example_03
+## Example 03
+In the example, we just list the steps and provide the setup to run the LAS file in folder example_03.
 
-## Pre-processing and PC classification
+### Pre-processing and PC classification
 ```bash
 cd example_03
 pdal translate Pozo_USGS_UTM11_NAD83_cat17.laz Pozo_USGS_UTM11_NAD83_cat17_SMRF_cl2.las --json example03_PDAL_SMRF_pipeline.json
@@ -1283,9 +1289,9 @@ wine /opt/LAStools/bin/las2las.exe -i Pozo_USGS_UTM11_NAD83_cat17_clg.laz -keep_
 mkdir dtm_interp
 wine /opt/LAStools/bin/blast2dem.exe -keep_class 2 -utm 11N -nad83 -meter -elevation_meter -merged -step 1 -i Pozo_USGS_UTM11_NAD83_cat17_clg_cl2.laz -o dtm_interp/Pozo_USGS_UTM11_NAD83_cat17_clg_cl2_1m.tif
 ```
-This file is provided in [example_03/Pozo_USGS_UTM11_NAD83_cat17.laz](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_03/Pozo_USGS_UTM11_NAD83_cat17.laz) and the lastools-classified PC [example_03/Pozo_USGS_UTM11_NAD83_cat17_clg.laz](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_03/Pozo_USGS_UTM11_NAD83_cat17_clg.laz).
+This original PC is provided in [example_03/Pozo_USGS_UTM11_NAD83_cat17.laz](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_03/Pozo_USGS_UTM11_NAD83_cat17.laz) and the lastools-classified PC [example_03/Pozo_USGS_UTM11_NAD83_cat17_clg.laz](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_03/Pozo_USGS_UTM11_NAD83_cat17_clg.laz).
 
-## Density-based subsampling and GMT map generation
+### Density-based subsampling and GMT map generation
 We use the provided GMT script (example03_create_map_view_of_PC_geomorph_output_gmt.sh) to generate map views from the subsampled PC.
 
 *NOTE: Make sure to give the full path to the Shapefile used as clip and for the GMT Shell script!*
@@ -1308,10 +1314,68 @@ example_03/example03_create_map_view_of_PC_geomorph_output_gmt.sh \
     --gmt_basename "Ex03_cl2" \
     2>&1 | tee Pozo_USGS_UTM11_NAD83_cat17_lasground_cl2_pc_geomorph_roughness_subsample_p08_1_10_1.log
 ```
-This will generate a set of output maps with GMT that are illustrated below (Figures \ref{Fig:Ex03_1.0m_2panel_DEMs}, \ref{Fig:Ex03_Slope_1_2_3_5m}, \ref{Fig:Ex03_dz_IQR_1_2_3_5m}).
+This will generate a set of output maps with GMT that are illustrated below (Figures \ref{Fig:Ex03_1.0m_2panel_DEMs}, \ref{Fig:Ex03_1.0m_2panel_SLPs}, \ref{Fig:Ex03_1.0m_2panel_RMSE}, \ref{Fig:Ex03_lasground_slopeP2_1_2_3_5m}, \ref{Fig:Ex03_lasground_RMSE_P1_1_2_3_5m}, \ref{Fig:Ex03_lasground_dz_IQR_1_2_3_5m}).
 
 ![Output of 1m DEM generated from the interpolated point cloud and difference DEM between the mean seed height and the interpolated DEM for Example03. Note that the interpolated DEM is based on all ground points, while the mean-seed point DEM used the largely reduced seed point PC.\label{Fig:Ex03_cl2_1.0m_2panel_DEMs}](figs/Ex03_cl2_1.0m_2panel_DEMs.png){height=90%}
 
-![Slope comparison for Example 03.\label{Fig:Ex03_Slope_1_2_3_5m}](figs/Ex03_Slope_1_2_3_5m.png){height=90%}
-![IQR of slope-normalized surface for diameter of 1, 2, 3, and 5m.\label{Fig:Ex03_dz_IQR_1_2_3_5m}](figs/Ex03_dz_IQR_1_2_3_5m.png){height=90%}
+![Slope measurements for Example 03.\label{Fig:Ex03_cl2_1.0m_2panel_SLPs}](figs/Ex03_cl2_1.0m_2panel_SLPs.png){height=90%}
+
+![RMSE measurements for Example 03.\label{Fig:Ex03_cl2_1.0m_2panel_RMSE}](figs/Ex03_cl2_1.0m_2panel_RMSE.png){height=90%}
+
+![Slope comparison for Example 03 from 1 to 5m diameter.\label{Fig:Ex03_lasground_slopeP2_1_2_3_5m}](figs/Ex03_lasground_slopeP2_1_2_3_5m.png){height=90%}
+
+![RMSE comparison for Example 03 from 1 to 5m diameter.\label{Fig:Ex03_lasground_RMSE_P1_1_2_3_5m}](figs/Ex03_lasground_RMSE_P1_1_2_3_5m.png){height=90%}
+
+![IQR of slope-normalized surface for diameter of 1, 2, 3, and 5m.\label{Fig:Ex03_lasground_dz_IQR_1_2_3_5m}](figs/Ex03_lasground_dz_IQR_1_2_3_5m.png){height=90%}
+
+## Example 04
+In this last example, we use a larger area covering the Blanca formation of the Pozo catchment (cf. \label{Fig:Pozo_DEM_examples_map}). This area contains almost 3 Million points.
+
+### Pre-processing and PC classification
+We rely on ground classification with LASTools:
+```bash
+cd example_04
+wine /opt/LAStools/bin/lasclassify.exe -i Pozo_WestCanada.laz -olaz -set_user_data 0 -set_classification 0 -o Pozo_WestCanada_uncl.laz
+wine /opt/LAStools/bin/lasnoise.exe -i Pozo_WestCanada_uncl.laz -step_xy 2 -step_z 1 -isolated 5 -olaz -o Pozo_WestCanada_uncln.laz
+wine /opt/LAStools/bin/lasground.exe -i Pozo_WestCanada_uncln.laz -by_flightline -wilderness -extra_fine -offset 0.25 -stddev 20 -step 1 -spike 0.5 -bulge 0.5 -olaz -o Pozo_WestCanada_clg.laz 
+wine /opt/LAStools/bin/las2las.exe -i Pozo_WestCanada_clg.laz -keep_class 2 -olaz -o Pozo_WestCanada_clg_cl2.laz 
+mkdir dtm_interp
+wine /opt/LAStools/bin/blast2dem.exe -keep_class 2 -utm 11N -nad83 -meter -elevation_meter -merged -step 1 -i Pozo_WestCanada_clg_cl2.laz -o dtm_interp/Pozo_WestCanada_clg_cl2_1m.tif
+```
+This original PC is provided in [example_04/Pozo_WestCanada.laz](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_04/Pozo_WestCanada.laz) and the lastools-classified PC [example_04/Pozo_WestCanada_clg.laz](https://github.com/BodoBookhagen/PC_geomorph_roughness/blob/master/example_04/Pozo_WestCanada_clg.laz).
+
+### Density-based subsampling and GMT map generation
+We use the provided GMT script (example04_create_map_view_of_PC_geomorph_output_gmt.sh) to generate map views from the subsampled PC.
+
+*NOTE: Make sure to give the full path to the Shapefile used as clip and for the GMT Shell script!*
+
+```bash
+python -W ignore ~/github/PC_geomorph_roughness/\
+PC_geomorph_roughness/pc_geomorph_roughness.py \
+    -i Pozo_WestCanada_clg_cl2.laz \
+    --raster_m_range "1 5 1" \
+    --shapefile_clip ~/github/PC_geomorph_roughness/\
+example_04/WestCanada.shp \
+    --epsg_code 26911 --nr_of_cores 0 --create_geotiff 1 --create_gmt 0  \
+    --create_shapefiles 0 --create_las 1 \
+    --dem_fname ~/github/PC_geomorph_roughness/\
+example_04/dtm_interp/Pozo_WestCanada_clg_cl2_1m.tif \
+    --subsample_1m_pc_p 0.8 \
+    --create_gmt_maps ~/github/PC_geomorph_roughness/\
+example_04/example04_create_map_view_of_PC_geomorph_output_gmt.sh \
+    --gmt_title "Ex04 lasground in Pozo" \
+    --gmt_basename "Ex04_cl2" \
+    2>&1 | tee Pozo_USGS_UTM11_NAD83_Pozo_WestCanada_clg_cl2_pc_geomorph_roughness_subsample_p08_1_5_1.log
+```
+This will generate a set of output maps with GMT that are illustrated below (Figures \ref{Fig:Ex04_1.0m_2panel_DEMs}, \ref{Fig:Ex04_1.0m_2panel_SLPs}, \ref{Fig:Ex04_1.0m_2panel_RMSE}, \ref{Fig:Ex04_3.0m_2panel_SLPs}), and \ref{Fig:Ex04_3.0m_2panel_RMSE}.
+
+![DEM view of Example 04. Output of 1m DEM generated from the interpolated point cloud and difference DEM between the mean seed height and the interpolated DEM. Note that the interpolated DEM is based on all ground points, while the mean-seed point DEM used the largely reduced seed-point PC.\label{Fig:Ex04_cl2_1.0m_2panel_DEMs}](figs/Ex04_cl2_1.0m_2panel_DEMs.png){height=90%}
+
+![Slope measurements for Example 04 at 1m diameter (r=0.5).\label{Fig:Ex04_cl2_1.0m_2panel_SLPs}](figs/Ex04_cl2_1.0m_2panel_SLPs.png){height=90%}
+
+![RMSE measurements for Example 04 at 1m diameter (r=0.5).\label{Fig:Ex04_cl2_1.0m_2panel_RMSE}](figs/Ex04_cl2_1.0m_2panel_RMSE.png){height=90%}
+
+![Slope measurements for Example 04 at 3m diameter (r=1.5).\label{Fig:Ex04_cl2_3.0m_2panel_SLPs}](figs/Ex04_cl2_3.0m_2panel_SLPs.png){height=90%}
+
+![RMSE measurements for Example 04 at 3m diameter (r=1.5).\label{Fig:Ex04_cl2_3.0m_2panel_RMSE}](figs/Ex04_cl2_3.0m_2panel_RMSE.png){height=90%}
 

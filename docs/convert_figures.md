@@ -77,4 +77,30 @@ convert Ex01_cl2_3.0m_dz_IQR.png Ex01_cl2_5.0m_dz_IQR.png -fuzz 1% -trim +repage
 convert dz_IQR_1_2m.png dz_IQR_3_5m.png +repage -append ~/Dropbox/soft/github/PC_geomorph_roughness/docs/figs/lasground_dz_IQR_1_2_3_5m.png
 
 
+# Example 03
+#LASGROUND
+convert Ex03_cl2_1.0m_SlopeLSTSQ_P2.png Ex03_cl2_2.0m_SlopeLSTSQ_P2.png -fuzz 1% -trim +repage +append SlopeP2_1_2m.png
+convert Ex03_cl2_3.0m_SlopeLSTSQ_P2.png Ex03_cl2_5.0m_SlopeLSTSQ_P2.png -fuzz 1% -trim +repage +append SlopeP2_3_5m.png
+convert SlopeP2_1_2m.png SlopeP2_3_5m.png +repage -append ~/Dropbox/soft/github/PC_geomorph_roughness/docs/figs/Ex03_lasground_slopeP2_1_2_3_5m.png
+
+convert Ex03_cl2_1.0m_SlopeLSTSQ_P1.png Ex03_cl2_2.0m_SlopeLSTSQ_P1.png -fuzz 1% -trim +repage +append SlopeP1_1_2m.png
+convert Ex03_cl2_3.0m_SlopeLSTSQ_P1.png Ex03_cl2_5.0m_SlopeLSTSQ_P1.png -fuzz 1% -trim +repage +append SlopeP1_3_5m.png
+convert SlopeP1_1_2m.png SlopeP1_3_5m.png +repage -append ~/Dropbox/soft/github/PC_geomorph_roughness/docs/figs/Ex03_lasground_slopeP1_1_2_3_5m.png
+
+convert Ex03_cl2_1.0m_P1_rmse.png Ex03_cl2_2.0m_P1_rmse.png -fuzz 1% -trim +repage +append RMSE_P1_1_2m.png
+convert Ex03_cl2_3.0m_P1_rmse.png Ex03_cl2_5.0m_P1_rmse.png -fuzz 1% -trim +repage +append RMSE_P1_3_5m.png
+convert RMSE_P1_1_2m.png RMSE_P1_3_5m.png +repage -append ~/Dropbox/soft/github/PC_geomorph_roughness/docs/figs/Ex03_lasground_RMSE_P1_1_2_3_5m.png
+
+convert Ex03_cl2_1.0m_P2_rmse.png Ex03_cl2_2.0m_P2_rmse.png -fuzz 1% -trim +repage +append RMSE_P2_1_2m.png
+convert Ex03_cl2_3.0m_P2_rmse.png Ex03_cl2_5.0m_P2_rmse.png -fuzz 1% -trim +repage +append RMSE_P2_3_5m.png
+convert RMSE_P2_1_2m.png RMSE_P2_3_5m.png +repage -append ~/Dropbox/soft/github/PC_geomorph_roughness/docs/figs/Ex03_lasground_RMSE_P2_1_2_3_5m.png
+
+convert Ex03_cl2_1.0m_dz_IQR.png Ex03_cl2_2.0m_dz_IQR.png -fuzz 1% -trim +repage +append dz_IQR_1_2m.png
+convert Ex03_cl2_3.0m_dz_IQR.png Ex03_cl2_5.0m_dz_IQR.png -fuzz 1% -trim +repage +append dz_IQR_3_5m.png
+convert dz_IQR_1_2m.png dz_IQR_3_5m.png +repage -append ~/Dropbox/soft/github/PC_geomorph_roughness/docs/figs/Ex03_lasground_dz_IQR_1_2_3_5m.png
+
 convert -crop 2082x1847+404+186 pozo.png +repage ~/Dropbox/soft/github/PC_geomorph_roughness/docs/figs/pozotitle.png
+
+#Example 04
+cp -rv Ex04_cl2_1.0m_2panel_DEMs.png Ex04_cl2_1.0m_2panel_SLPs.png Ex04_cl2_1.0m_2panel_RMSE.png ~/Dropbox/soft/github/PC_geomorph_roughness/docs/figs/
+cp -rv Ex04_cl2_3.0m_2panel_RMSE.png  Ex04_cl2_3.0m_2panel_SLPs.png ~/Dropbox/soft/github/PC_geomorph_roughness/docs/figs/
