@@ -1007,7 +1007,7 @@ In the following three sections, we provide detailed step-by-step explanation of
 ## Example 01 - subcatchment of the SW area of Pozo on SCI
 In order to show how *PC_geomorph_roughness* works, we show the usuall steps done to process a catchment.
 
-*NOTE: If you re-run PC_geomorph_roughness with different options, make sure to remove the directories or files containing the data. By default, PC_geomorph_roughness will load existing HDF5 and geotiff files. For example, do a **rm -fr hdf/ geotiff/ LAS/ pickle/** *
+*NOTE: If you re-run PC_geomorph_roughness with different options, make sure to remove the directories or files containing the data. By default, PC_geomorph_roughness will load existing HDF5 and geotiff files. For example, use rm -fr hdf/ geotiff/ LAS/ pickle/ *
 
 ### Summary of pre-processing steps to create a classified point cloud
 In order to generate a ground-classified point cloud, we use the following script and approach:
@@ -1052,7 +1052,7 @@ We investigate the mean height, least-squared slope and IQR of normalized elevat
 ![Alternative oblique view of a PC showing mean elevation for each seed point (top left), IQR of normalized elevation (top right), least-squared linear (polynom order=1) slope (bottom left), least-squared linear (polynom order=2) slope (bottom right). \label{Fig:Cat16_PC_zoom_Z_slope_IQR_results_2nd}](figs/Cat16_PC_zoom_Z_slope_IQR_results_2nd.png){height=90%}
 
 ### What polynomial fit is most appropriate?
-The code fits a polynom to all points in the neighborhood. It uses a least-squared approach to reduce the impact of outliers. For polynom order=1 (planar fit), the results are shown as a point cloud in Figure \ref{Fig:Cat16_PC_zoom_Z_slope_IQR_results_2nd}-bottom left. We can compare the fits for some example point. In most cases, the least-squared planar (order=1) fit for slope determination works just fine (see Figures \ref{Fig:PlaneFit_seed00020901} to \ref{Fig:PlaneFit_seed00020901}. The curvature calculation is based on the mean curvature of the second-order polynom.
+The code fits a polynom to all points in the neighborhood. It uses a least-squared approach to reduce the impact of outliers. For polynom order=1 (planar fit), the results are shown as a point cloud in Figure \ref{Fig:Cat16_PC_zoom_Z_slope_IQR_results_2nd}-bottom left. We can compare the fits for some example point. In most cases, the least-squared planar (order=1) fit for slope determination works just fine (see Figures \ref{Fig:PlaneFit_seed00020901} to \ref{Fig:PlaneFit_seed00020319}. The curvature calculation is based on the mean curvature of the second-order polynom.
 
 ![Characteristic example where planar (order=1) fit in black colors is very close to a polynomial fit with order=2 in blue color. Orginial points are blue dots. Right plot shows normalized point heights and their distances: black dots are distances for the planar fit, blue points for the polynomial order=2 fit.\label{Fig:PlaneFit_seed00020901}](figs/PlaneFit_seed00020901.png){height=90%}
 
@@ -1103,7 +1103,7 @@ example_01/example01_create_map_view_of_PC_geomorph_output_gmt.sh \
     --gmt_basename "Example01_cl2" \
     2>&1 | tee Pozo_USGS_UTM11_NAD83_cat16_SMRF_cl2_pc_geomorph_roughness_subsample_p08_1_10_1.log
 ```
-This will generate a set of output maps with GMT that are illustrated below (Figures \ref{Fig:Ex01_cl2_1.0m_2panel_DEMs}, \ref{Fig:Ex01_cl2_1.0m_2panel_SLPs}, \ref{Fig:Ex01_cl2_1.0m_2panel_NRLIDARPTS_DZ_STDDEV}, \ref{Fig:Ex01_cl2_1.0m_2panel_DZ9010P_IQR}, \ref{Fig:Ex01_cl2_1.0m_2panel_RMSE}, \ref{Fig:NrLidarPots_1_2_3_5m}, \ref{Fig:SMRF_slopeP1_1_2_3_5m.png}, \ref{Fig:SMRF_slopeP2_1_2_3_5m.png},\ref{Fig:dz_IQR_1_2_3_5m}, \ref{Fig:SMRF_RMSE_P1_1_2_3_5m}, \ref{Fig:SMRF_RMSE_P2_1_2_3_5m}). 
+This will generate a set of output maps with GMT that are illustrated below (Figures \ref{Fig:Ex01_cl2_1.0m_2panel_DEMs}, \ref{Fig:Ex01_cl2_1.0m_2panel_SLPs}, \ref{Fig:Ex01_cl2_1.0m_2panel_NRLIDARPTS_DZ_STDDEV}, \ref{Fig:Ex01_cl2_1.0m_2panel_DZ9010P_IQR}, \ref{Fig:Ex01_cl2_1.0m_2panel_RMSE}, \ref{Fig:NrLidarPots_1_2_3_5m}, \ref{Fig:SMRF_slopeP1_1_2_3_5m}, \ref{Fig:SMRF_slopeP2_1_2_3_5m},\ref{Fig:dz_IQR_1_2_3_5m}, \ref{Fig:SMRF_RMSE_P1_1_2_3_5m}, \ref{Fig:SMRF_RMSE_P2_1_2_3_5m}). 
 
 ![Output of 1m DEM generated from the interpolated point cloud and difference DEM between the mean seed height and the interpolated DEM. Note that the interpolated DEM is based on all ground points, while the mean-seed point DEM used the largely reduced seed point PC.\label{Fig:Ex01_cl2_1.0m_2panel_DEMs}](figs/Ex01_cl2_1.0m_2panel_DEMs.png){height=90%}
 
@@ -1115,17 +1115,17 @@ This will generate a set of output maps with GMT that are illustrated below (Fig
 
 ![RMSE (in meter) from the first and second order polynomial fitting. \label{Fig:Ex01_cl2_1.0m_2panel_RMSE}](figs/Ex01_cl2_1.0m_2panel_RMSE.png){height=90%}
 
-![Number of points in analysis radii increase rapidly and will lead to more robust results. Here, the number of neighborhood points for 1, 2, 3, and 5 m of interpolation diameters are shown. Note the different ranges of the colorscale \label{Fig:NrLidarPots_1_2_3_5m.png}](figs/NrLidarPots_1_2_3_5m.png){height=90%}
+![Number of points in analysis radii increase rapidly and will lead to more robust results. Here, the number of neighborhood points for 1, 2, 3, and 5 m of interpolation diameters are shown. Note the different ranges of the colorscale \label{Fig:NrLidarPots_1_2_3_5m}](figs/NrLidarPots_1_2_3_5m.png){height=90%}
 
-![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the planar (polynomial order=1) slopes. \label{Fig:SMRF_slopeP1_1_2_3_5m.png}](figs/SMRF_slopeP1_1_2_3_5m.png){height=90%}
+![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the planar (polynomial order=1) slopes. \label{Fig:SMRF_slopeP1_1_2_3_5m}](figs/SMRF_slopeP1_1_2_3_5m.png){height=90%}
 
-![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the second order polynoms (polynomial order=2) slopes. These have generally a lower RMSE than polynomial orders=1. \label{Fig:figs/SMRF_slopeP2_1_2_3_5m.png}](figs/SMRF_slopeP2_1_2_3_5m.png){height=90%}
+![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the second order polynoms (polynomial order=2) slopes. These have generally a lower RMSE than polynomial orders=1. \label{Fig:SMRF_slopeP2_1_2_3_5m}](figs/SMRF_slopeP2_1_2_3_5m.png){height=90%}
 
-![The IQR reflects channels and arroyos with increasing interpolation radii. Here, the slope-normalized elevation (IQR) for 1, 2, 3, and 5 m of interpolation diameters are shown. \label{Fig:dz_IQR_1_2_3_5m.png}](figs/dz_IQR_1_2_3_5m.png){height=90%}
+![The IQR reflects channels and arroyos with increasing interpolation radii. Here, the slope-normalized elevation (IQR) for 1, 2, 3, and 5 m of interpolation diameters are shown. \label{Fig:dz_IQR_1_2_3_5m}](figs/dz_IQR_1_2_3_5m.png){height=90%}
 
-![RMSE (m) from linear fits (polynomial order = 1) for radii 1, 2, 3, and 5 m are shown. \label{Fig:SMRF_RMSE_P1_1_2_3_5m.png}](figs/SMRF_RMSE_P1_1_2_3_5m.png){height=90%}
+![RMSE (m) from linear fits (polynomial order = 1) for radii 1, 2, 3, and 5 m are shown. \label{Fig:SMRF_RMSE_P1_1_2_3_5m}](figs/SMRF_RMSE_P1_1_2_3_5m.png){height=90%}
 
-![RMSE (m) from linear fits (polynomial order = 2) for radii 1, 2, 3, and 5 m are shown. \label{Fig:SMRF_RMSE_P2_1_2_3_5m.png}](figs/SMRF_RMSE_P2_1_2_3_5m.png){height=90%}
+![RMSE (m) from linear fits (polynomial order = 2) for radii 1, 2, 3, and 5 m are shown. \label{Fig:SMRF_RMSE_P2_1_2_3_5m}](figs/SMRF_RMSE_P2_1_2_3_5m.png){height=90%}
 
 
 ### Analysis of the lasground classified PC
@@ -1158,17 +1158,17 @@ example_01/example01_create_map_view_of_PC_geomorph_output_gmt.sh \
     2>&1 | tee Pozo_USGS_UTM11_NAD83_cat16_lasground_cl2_pc_geomorph_roughness_subsample_p08_1_10_1.log
 ```
 
-The results are similar to the PDAL-SMRF classified PC (Figures \ref{Fig:lasground_slopeP1_1_2_3_5m.png}, \ref{Fig:lasground_slopeP2_1_2_3_5m.png}, \ref{Fig:lasground_dz_IQR_1_2_3_5m.png}, \ref{Fig:lasground_RMSE_P1_1_2_3_5m.png}, and \ref{Fig:lasground_RMSE_P2_1_2_3_5m.png}).
+The results are similar to the PDAL-SMRF classified PC (Figures \ref{Fig:lasground_slopeP1_1_2_3_5m}, \ref{Fig:lasground_slopeP2_1_2_3_5m}, \ref{Fig:dz_IQR_1_2_3_5m}, \ref{Fig:lasground_RMSE_P1_1_2_3_5m}, and \ref{Fig:lasground_RMSE_P2_1_2_3_5m}).
 
-![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the planar (polynomial order=1) slopes. \label{Fig:lasground_slopeP1_1_2_3_5m.png}](figs/lasground_slopeP1_1_2_3_5m.png){height=90%}
+![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the planar (polynomial order=1) slopes. \label{Fig:lasground_slopeP1_1_2_3_5m}](figs/lasground_slopeP1_1_2_3_5m.png){height=90%}
 
-![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the second order polynoms (polynomial order=2) slopes. These have generally a lower RMSE than polynomial orders=1. \label{Fig:figs/lasground_slopeP2_1_2_3_5m.png}](figs/lasground_slopeP2_1_2_3_5m.png){height=90%}
+![Deriving slopes for large neighborhood of points results in more realistic slope values. Here, the slopes for diameters of 1, 2, 3, and 5 m are shown. We only show the second order polynoms (polynomial order=2) slopes. These have generally a lower RMSE than polynomial orders=1. \label{Fig:lasground_slopeP2_1_2_3_5m}](figs/lasground_slopeP2_1_2_3_5m.png){height=90%}
 
-![The IQR reflects channels and arroyos with increasing interpolation radii. Here, the slope-normalized elevation (IQR) for 1, 2, 3, and 5 m of interpolation diameters are shown. \label{Fig:dz_IQR_1_2_3_5m.png}](figs/dz_IQR_1_2_3_5m.png){height=90%}
+![The IQR reflects channels and arroyos with increasing interpolation radii. Here, the slope-normalized elevation (IQR) for 1, 2, 3, and 5 m of interpolation diameters are shown. \label{Fig:dz_IQR_1_2_3_5m}](figs/dz_IQR_1_2_3_5m.png){height=90%}
 
-![RMSE (m) from linear fits (polynomial order = 1) for radii 1, 2, 3, and 5 m are shown. \label{Fig:lasground_RMSE_P1_1_2_3_5m.png}](figs/lasground_RMSE_P1_1_2_3_5m.png){height=90%}
+![RMSE (m) from linear fits (polynomial order = 1) for radii 1, 2, 3, and 5 m are shown. \label{Fig:lasground_RMSE_P1_1_2_3_5m}](figs/lasground_RMSE_P1_1_2_3_5m.png){height=90%}
 
-![RMSE (m) from second-order fits (polynomial order = 2) for radii 1, 2, 3, and 5 m are shown. \label{Fig:lasground_RMSE_P2_1_2_3_5m.png}](figs/lasground_RMSE_P2_1_2_3_5m.png){height=90%}
+![RMSE (m) from second-order fits (polynomial order = 2) for radii 1, 2, 3, and 5 m are shown. \label{Fig:lasground_RMSE_P2_1_2_3_5m}](figs/lasground_RMSE_P2_1_2_3_5m.png){height=90%}
 
 ## Example 02 and PC densities
 For a different catchment (stored in the folder Example 02), we have investigated the impact of PC densities on the outcome. We don't provide detailed processing steps, but only a short discussion of PC Densities.
@@ -1314,7 +1314,7 @@ example_03/example03_create_map_view_of_PC_geomorph_output_gmt.sh \
     --gmt_basename "Ex03_cl2" \
     2>&1 | tee Pozo_USGS_UTM11_NAD83_cat17_lasground_cl2_pc_geomorph_roughness_subsample_p08_1_10_1.log
 ```
-This will generate a set of output maps with GMT that are illustrated below (Figures \ref{Fig:Ex03_1.0m_2panel_DEMs}, \ref{Fig:Ex03_1.0m_2panel_SLPs}, \ref{Fig:Ex03_1.0m_2panel_RMSE}, \ref{Fig:Ex03_lasground_slopeP2_1_2_3_5m}, \ref{Fig:Ex03_lasground_RMSE_P1_1_2_3_5m}, \ref{Fig:Ex03_lasground_dz_IQR_1_2_3_5m}).
+This will generate a set of output maps with GMT that are illustrated below (Figures \ref{Fig:Ex03_cl2_1.0m_2panel_DEMs}, \ref{Fig:Ex03_cl2_1.0m_2panel_SLPs}, \ref{Fig:Ex03_cl2_1.0m_2panel_RMSE}, \ref{Fig:Ex03_lasground_slopeP2_1_2_3_5m}, \ref{Fig:Ex03_lasground_RMSE_P1_1_2_3_5m}, \ref{Fig:Ex03_lasground_dz_IQR_1_2_3_5m}).
 
 ![Output of 1m DEM generated from the interpolated point cloud and difference DEM between the mean seed height and the interpolated DEM for Example03. Note that the interpolated DEM is based on all ground points, while the mean-seed point DEM used the largely reduced seed point PC.\label{Fig:Ex03_cl2_1.0m_2panel_DEMs}](figs/Ex03_cl2_1.0m_2panel_DEMs.png){height=90%}
 
@@ -1367,7 +1367,7 @@ example_04/example04_create_map_view_of_PC_geomorph_output_gmt.sh \
     --gmt_basename "Ex04_cl2" \
     2>&1 | tee Pozo_USGS_UTM11_NAD83_Pozo_WestCanada_clg_cl2_pc_geomorph_roughness_subsample_p08_1_5_1.log
 ```
-This will generate a set of output maps with GMT that are illustrated below (Figures \ref{Fig:Ex04_1.0m_2panel_DEMs}, \ref{Fig:Ex04_1.0m_2panel_SLPs}, \ref{Fig:Ex04_1.0m_2panel_RMSE}, \ref{Fig:Ex04_3.0m_2panel_SLPs}), and \ref{Fig:Ex04_3.0m_2panel_RMSE}.
+This will generate a set of output maps with GMT that are illustrated below (Figures \ref{Fig:Ex04_cl2_1.0m_2panel_DEMs}, \ref{Fig:Ex04_cl2_1.0m_2panel_SLPs}, \ref{Fig:Ex04_cl2_1.0m_2panel_RMSE}, \ref{Fig:Ex04_cl2_3.0m_2panel_SLPs}, and \ref{Fig:Ex04_cl2_3.0m_2panel_RMSE}).
 
 ![DEM view of Example 04. Output of 1m DEM generated from the interpolated point cloud and difference DEM between the mean seed height and the interpolated DEM. Note that the interpolated DEM is based on all ground points, while the mean-seed point DEM used the largely reduced seed-point PC.\label{Fig:Ex04_cl2_1.0m_2panel_DEMs}](figs/Ex04_cl2_1.0m_2panel_DEMs.png){height=90%}
 

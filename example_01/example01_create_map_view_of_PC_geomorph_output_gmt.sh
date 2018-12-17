@@ -310,18 +310,18 @@ gmt psscale -R -J -DjTC+o0.0c/0.3c/+w6c/0.3c+h -C$DZ_IQR_GRD_CPT -I -F+gwhite+r1
 convert -alpha off -rotate 90 -quality 100 -density 300 $POSTSCRIPT8 ${POSTSCRIPT8::-3}.png
 
 ## Combine Curvature
-convert ${POSTSCRIPT4::-3}.png ${POSTSCRIPT4b::-3}.png ${POSTSCRIPT4c::-3}.png -fuzz 1% -trim -bordercolor white -border 0x25 +repage -append ${POSTSCRIPT_BASENAME}_3panel_curvature.png
-convert ${POSTSCRIPT3rmse::-3}.png ${POSTSCRIPT3brmse::-3}.png -fuzz 1% -trim -bordercolor white -border 0x25 +repage -append ${POSTSCRIPT_BASENAME}_2panel_RMSE.png
+convert ${POSTSCRIPT4::-3}.png ${POSTSCRIPT4b::-3}.png ${POSTSCRIPT4c::-3}.png -fuzz 1% -trim -bordercolor white -border 0x25 +repage -gravity center -append ${POSTSCRIPT_BASENAME}_3panel_curvature.png
+convert ${POSTSCRIPT3rmse::-3}.png ${POSTSCRIPT3brmse::-3}.png -fuzz 1% -trim -bordercolor white -border 0x25 +repage -gravity center -append ${POSTSCRIPT_BASENAME}_2panel_RMSE.png
 
 ##
-convert ${POSTSCRIPT1::-3}.png ${POSTSCRIPT2::-3}.png -fuzz 1% -trim -background white -bordercolor white -border 0x25 +repage -append ${POSTSCRIPT_BASENAME}_2panel_DEMs.png
-convert ${POSTSCRIPT3::-3}.png ${POSTSCRIPT3b::-3}.png -fuzz 1% -trim -bordercolor white -border 0x25 +repage -append ${POSTSCRIPT_BASENAME}_2panel_SLPs.png
+convert ${POSTSCRIPT1::-3}.png ${POSTSCRIPT2::-3}.png -fuzz 1% -trim -background white -bordercolor white -border 0x25 +repage -gravity center -append ${POSTSCRIPT_BASENAME}_2panel_DEMs.png
+convert ${POSTSCRIPT3::-3}.png ${POSTSCRIPT3b::-3}.png -fuzz 1% -trim -bordercolor white -border 0x25 +repage -gravity center -append ${POSTSCRIPT_BASENAME}_2panel_SLPs.png
 
 #Combine into 4-panel figure:
 convert ${POSTSCRIPT_BASENAME}_2panel_DEMs.png ${POSTSCRIPT_BASENAME}_2panel_SLPs.png -fuzz 1% -trim -bordercolor white -border 0x25 -background white +repage +append ${POSTSCRIPT_BASENAME}_4panel_DEMS_SLP_CURV.png
 
-convert ${POSTSCRIPT5::-3}.png ${POSTSCRIPT6::-3}.png -fuzz 1% -trim -bordercolor white -border 0x25 +repage -append ${POSTSCRIPT_BASENAME}_2panel_NRLIDARPTS_DZ_STDDEV.png
-convert ${POSTSCRIPT7::-3}.png ${POSTSCRIPT8::-3}.png -fuzz 1% -trim -bordercolor white -border 0x25 +repage -append ${POSTSCRIPT_BASENAME}_2panel_DZ9010P_IQR.png
+convert ${POSTSCRIPT5::-3}.png ${POSTSCRIPT6::-3}.png -fuzz 1% -trim -bordercolor white -border 0x25 +repage -gravity center -append ${POSTSCRIPT_BASENAME}_2panel_NRLIDARPTS_DZ_STDDEV.png
+convert ${POSTSCRIPT7::-3}.png ${POSTSCRIPT8::-3}.png -fuzz 1% -trim -bordercolor white -border 0x25 +repage -gravity center -append ${POSTSCRIPT_BASENAME}_2panel_DZ9010P_IQR.png
 
 #Combine into 4-panel figure:
 convert ${POSTSCRIPT_BASENAME}_2panel_NRLIDARPTS_DZ_STDDEV.png ${POSTSCRIPT_BASENAME}_2panel_DZ9010P_IQR.png -alpha off -fuzz 1% -trim -border 0x25 +repage +append ${POSTSCRIPT_BASENAME}_4panel_NRLIDARPTS_DZ_STDDEV_DZ9010P_IQR.png
